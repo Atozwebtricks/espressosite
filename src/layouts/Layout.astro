@@ -1,0 +1,39 @@
+---
+interface Props {
+	title: string;
+}
+
+import Navbar from '../components/Navbar.astro';
+import Footer from '../components/Footer.astro';
+
+const { title } = Astro.props;
+---
+
+<!doctype html>
+<html lang="en">
+	<head>
+		<script async src="https://tally.so/widgets/embed.js"></script>
+
+
+		<meta charset="utf-8" />
+		<meta name="description" content="Astro description" />
+		<meta name="viewport" content="width=device-width" />
+		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+		<meta name="generator" content={Astro.generator} />
+		<title>{title}</title>
+
+		<link rel="preload" href="/InterDisplay-Regular.woff2" as="font" type="font/woff2" crossorigin />
+		<link rel="preload" href="/InterDisplay-Medium.woff2" as="font" type="font/woff2" crossorigin />
+		<link rel="preload" href="/InterDisplay-SemiBold.woff2" as="font" type="font/woff2" crossorigin />
+	</head>
+	<body class="bg-background text-dark antialiased flex flex-col min-h-screen">
+		<Navbar />
+		<main class="flex-grow">
+			<slot />
+		</main>
+		<Footer />
+	</body>
+</html>
+<style is:global>
+@import '../styles/global.css';
+</style> 

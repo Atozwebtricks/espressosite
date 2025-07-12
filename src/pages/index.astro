@@ -1,0 +1,136 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { supabase, fetchMachineImages } from '../lib/supabase';
+import MachineList from '../components/MachineList.svelte';
+
+// Simplified and more reliable data fetching
+async function fetchMachines() {
+	try {
+		console.log('Fetching machines from Supabase...');
+		const { data: machines, error } = await supabase
+			.from('espresso_machines')
+			.select('*');
+
+		if (error) {
+			console.error('Supabase error:', error);
+			throw error;
+		}
+
+		if (!machines || machines.length === 0) {
+			console.warn('No machines found in database');
+			return { data: [], error: 'No machines found in database' };
+		}
+
+		console.log(`Successfully fetched ${machines.length} machines`);
+		return { data: machines, error: null };
+	} catch (err) {
+		console.error('Error fetching machines:', err);
+		// Only throw if this is a real connection issue
+		throw err;
+	}
+}
+
+// Fetch machines with proper error handling
+let machines: any[] = [];
+let fetchError: string | null = null;
+let isActualError = false;
+
+try {
+	const result = await fetchMachines();
+	machines = result.data || [];
+	fetchError = result.error;
+} catch (error) {
+	console.error('Failed to fetch machines:', error);
+	// Only show connection error for actual network/auth issues
+	const errorMessage = error instanceof Error ? error.message : String(error);
+	const errorCode = (error as any)?.code;
+	if (errorMessage?.includes('network') || errorMessage?.includes('fetch') || errorCode) {
+		fetchError = 'Database connection failed';
+		isActualError = true;
+	} else {
+		// For other errors, just log and show no machines
+		machines = [];
+		fetchError = null;
+	}
+}
+
+// Fetch signed URLs only for the first page of machines (20 machines) to improve initial load performance
+// Additional images will be loaded on-demand when users navigate to other pages or apply filters
+let machineImages: Record<string, { url: string; image_caption?: string; image_source?: string } | null> = {};
+if (machines && machines.length > 0) {
+	try {
+		// Only fetch images for the first 20 machines (first page)
+		const itemsPerPage = 20;
+		const firstPageMachines = machines.slice(0, itemsPerPage);
+		const machineIds = firstPageMachines.map(m => m.id);
+		console.log(`Fetching images for first ${firstPageMachines.length} machines...`);
+		machineImages = await fetchMachineImages(machineIds, 400); // 400px width for table display
+	} catch (error) {
+		console.error('Error fetching machine images (non-critical):', error);
+		// Continue without images rather than failing completely
+	}
+}
+
+// Attach signed image URLs to machine data
+const machinesWithImages = machines?.map(machine => ({
+	...machine,
+	signedImageUrl: machineImages[machine.id]?.url || null,
+	image_caption: machineImages[machine.id]?.image_caption || machine.image_caption,
+	image_source: machineImages[machine.id]?.image_source || machine.image_source,
+})) || [];
+
+// Generate static metadata for SEO regardless of data fetch success
+const pageTitle = "Espresso Machine Comparison - Compare Top Coffee Machines";
+const pageDescription = "Compare specifications, prices, and features of the best espresso machines. Find the perfect coffee machine for your home or office.";
+---
+
+<Layout title={pageTitle}>
+	<section class="max-w-4xl mx-auto px-5 pt-12 pb-12 lg:pt-12 lg:pb-20 text-center">
+		<h1 class="font-serif font-extrabold text-primary leading-tight text-4xl sm:text-6xl md:text-7xl">
+			<span class="block">Compare</span>
+			<span class="block">espresso machines</span>
+		</h1>
+		<p class="mt-6 max-w-2xl mx-auto text-base md:text-xl text-dark">
+			{pageDescription}
+		</p>
+	</section>
+
+	<section class="max-w-10xl mx-auto px-3 lg:px-16 pb-2">
+		{machinesWithImages && machinesWithImages.length > 0 ? (
+			<div class="border-border">
+				<MachineList client:load allMachines={machinesWithImages} />
+			</div>
+		) : isActualError ? (
+			<div class="bg-white border border-border rounded-xl shadow-sm p-8 text-center">
+				<div class="space-y-4">
+					<div class="text-orange-600 font-medium">
+						⚠️ Temporarily unable to load machine data
+					</div>
+					<p class="text-gray-600">
+						We're experiencing a temporary connection issue. Please try refreshing the page in a moment.
+					</p>
+					<p class="text-sm text-gray-500">
+						Error: {fetchError}
+					</p>
+					<button 
+						onclick="window.location.reload()" 
+						class="mt-4 px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-dark transition-colors"
+					>
+						Refresh Page
+					</button>
+				</div>
+			</div>
+		) : (
+			<div class="bg-white border border-border rounded-xl shadow-sm p-8 text-center">
+				<div class="space-y-4">
+					<div class="text-gray-600 font-medium">
+						No machines found in the database
+					</div>
+					<p class="text-gray-500">
+						It looks like the database hasn't been seeded yet. Please run the seed script to populate the machine data.
+					</p>
+				</div>
+			</div>
+		)}
+	</section>
+</Layout>

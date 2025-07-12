@@ -1,0 +1,57 @@
+---
+export const prerender = false;
+
+import Layout from '../layouts/Layout.astro';
+import { supabase, fetchMachineImages } from '../lib/supabase';
+import CompareView from '../components/CompareView.svelte';
+
+const idsParam = Astro.url.searchParams.get('ids');
+const ids = idsParam ? idsParam.split(',') : [];
+
+let machines = [];
+let error = null;
+
+if (ids.length === 2) {
+  const { data, error: dbError } = await supabase
+    .from('espresso_machines')
+    .select('*')
+    .in('id', ids);
+  
+  if (dbError) {
+    error = `Database Error: ${dbError.message}`;
+  } else if (!data || data.length !== 2) {
+    error = `Error: Could not find two machines with the specified IDs. One of the IDs in the URL (${ids.join(', ')}) may be incorrect. Please try selecting them again.`;
+  } else {
+    // Fetch signed URLs for machine images (higher resolution for comparison)
+    const machineImages = await fetchMachineImages(ids, 600);
+    
+    // Ensure the order is the same as the one in the URL and attach signed image URLs
+    machines = ids.map(id => {
+      const machine = data.find(m => m.id === id);
+      return {
+        ...machine,
+        signedImageUrl: machineImages[id]?.url || null,
+        image_caption: machineImages[id]?.image_caption || machine.image_caption,
+        image_source: machineImages[id]?.image_source || machine.image_source,
+      };
+    });
+  }
+} else {
+    error = "Please select exactly two machines to compare.";
+}
+---
+
+<Layout title="Compare Espresso Machines">
+  <main class="container mx-auto p-4">
+    <a href="/" class="text-primary hover:underline mb-6 block underline-offset-4 text-center sm:text-left underline font-medium">&larr; Back to all machines</a>
+    <!-- <h1 class="text-3xl font-bold mb-6 text-gray-800">Comparison</h1> -->
+
+    {error && <p class="text-red-500 bg-red-100 p-3 rounded">{error}</p>}
+
+    {machines.length === 2 ? (
+      <CompareView client:load machines={machines} />
+    ) : (
+      !error && <p>Loading machine data...</p>
+    )}
+  </main>
+</Layout> 

@@ -1,0 +1,42 @@
+---
+import { supabase, fetchMachineImage } from '../../lib/supabase';
+import Layout from '../../layouts/Layout.astro';
+import MachineSpecs from '../../components/MachineSpecs.svelte';
+
+// Remove getStaticPaths to enable server-side rendering
+// This allows dynamic routes without pre-generating all pages
+
+const { slug } = Astro.params;
+const { data: machine, error } = await supabase
+  .from('espresso_machines')
+  .select('*')
+  .eq('id', slug)
+  .single();
+
+if (error && error.code !== 'PGRST116') { // PGRST116 is "No rows found"
+  console.error('Error fetching machine details:', error);
+  return new Response(null, { status: 500 });
+}
+
+if (!machine) {
+  return new Response(null, { status: 404 });
+}
+
+// Fetch signed URL for machine image (higher resolution for detail page)
+const machineImage = await fetchMachineImage(machine.id, 800);
+
+// Attach signed image URL to machine data
+const machineWithImage = {
+  ...machine,
+  signedImageUrl: machineImage?.url || null,
+  image_caption: machineImage?.image_caption || machine.image_caption,
+  image_source: machineImage?.image_source || machine.image_source,
+};
+---
+
+<Layout title={machine.model_name || machine.name}>
+  <main class="container mx-auto p-4">
+    <a href="/" class="text-blue-500 hover:underline mb-4 inline-block">&larr; Back to all machines</a>
+    <MachineSpecs client:load machine={machineWithImage} />
+  </main>
+</Layout> 
