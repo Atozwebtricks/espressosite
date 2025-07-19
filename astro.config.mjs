@@ -8,6 +8,7 @@ import tailwindcss from '@tailwindcss/vite';
 
 // https://astro.build/config
 export default defineConfig({
+  site: 'https://your-domain.com', // Replace with your actual domain
   output: 'server',
   adapter: node({
     mode: 'standalone'

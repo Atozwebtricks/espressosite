@@ -1,44 +1,65 @@
 ---
-export const prerender = false;
+// Server-side rendering with client-side store for persistence
 
 import Layout from '../layouts/Layout.astro';
-import { supabase, fetchMachineImages } from '../lib/supabase';
+import { createClient } from '@supabase/supabase-js';
+import { fetchMachineImages } from '../lib/supabase';
 import CompareView from '../components/CompareView.svelte';
 
+// Create Supabase client for server-side rendering
+const supabase = createClient(
+  import.meta.env.SUPABASE_URL || import.meta.env.PUBLIC_SUPABASE_URL,
+  import.meta.env.SUPABASE_SERVICE_ROLE_KEY || import.meta.env.PUBLIC_SUPABASE_ANON_KEY
+);
+
 const idsParam = Astro.url.searchParams.get('ids');
-const ids = idsParam ? idsParam.split(',') : [];
+const ids = idsParam ? idsParam.split(',').filter(Boolean) : [];
 
 let machines = [];
 let error = null;
 
 if (ids.length === 2) {
-  const { data, error: dbError } = await supabase
-    .from('espresso_machines')
-    .select('*')
-    .in('id', ids);
-  
-  if (dbError) {
-    error = `Database Error: ${dbError.message}`;
-  } else if (!data || data.length !== 2) {
-    error = `Error: Could not find two machines with the specified IDs. One of the IDs in the URL (${ids.join(', ')}) may be incorrect. Please try selecting them again.`;
-  } else {
-    // Fetch signed URLs for machine images (higher resolution for comparison)
-    const machineImages = await fetchMachineImages(ids, 600);
+  try {
+    console.log('SSR: Fetching machines for comparison:', ids);
+    const { data, error: dbError } = await supabase
+      .from('espresso_machines')
+      .select('*')
+      .in('id', ids);
     
-    // Ensure the order is the same as the one in the URL and attach signed image URLs
-    machines = ids.map(id => {
-      const machine = data.find(m => m.id === id);
-      return {
-        ...machine,
-        signedImageUrl: machineImages[id]?.url || null,
-        image_caption: machineImages[id]?.image_caption || machine.image_caption,
-        image_source: machineImages[id]?.image_source || machine.image_source,
-      };
-    });
+    if (dbError) {
+      console.error('SSR: Database error:', dbError);
+      error = `Database Error: ${dbError.message}`;
+    } else if (!data || data.length !== 2) {
+      console.warn('SSR: Could not find both machines for comparison');
+      error = `Error: Could not find two machines with the specified IDs. One of the IDs in the URL (${ids.join(', ')}) may be incorrect. Please try selecting them again.`;
+    } else {
+      // Don't fetch images on server-side for faster loading
+      // Images will be loaded client-side
+      machines = ids.map(id => {
+        const machine = data.find(m => m.id === id);
+        return {
+          ...machine,
+          signedImageUrl: null, // Will be loaded client-side
+          image_caption: machine.image_caption,
+          image_source: machine.image_source,
+        };
+      });
+      
+      console.log('SSR: Successfully prepared comparison data');
+    }
+  } catch (err) {
+    console.error('SSR: Error fetching comparison data:', err);
+    error = `Failed to load comparison data: ${err instanceof Error ? err.message : 'Unknown error'}`;
   }
 } else {
-    error = "Please select exactly two machines to compare.";
+  error = "Please select exactly two machines to compare.";
 }
+
+// Add cache control headers for ISR
+Astro.response.headers.set(
+  'Cache-Control',
+  'public, max-age=0, s-maxage=300, stale-while-revalidate=3600'
+);
 ---
 
 <Layout title="Compare Espresso Machines">
@@ -49,7 +70,7 @@ if (ids.length === 2) {
     {error && <p class="text-red-500 bg-red-100 p-3 rounded">{error}</p>}
 
     {machines.length === 2 ? (
-      <CompareView client:load machines={machines} />
+      <CompareView client:visible machines={machines} />
     ) : (
       !error && <p>Loading machine data...</p>
     )}

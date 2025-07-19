@@ -1,7 +1,8 @@
 <script>
+  import { onMount } from 'svelte';
   import { normalizeVendors, formatPrice } from '../lib/vendorUtils';
   import { 
-    formatHeatupTime, 
+    // formatHeatupTime, 
     formatWarranty, 
     formatBuiltInGrinder, 
     formatWaterTank, 
@@ -19,8 +20,32 @@
     formatPreInfusion
   } from '../lib/formatters';
   import ImageLightbox from './ImageLightbox.svelte';
+  import LazyImage from './LazyImage.svelte';
+  import { fetchMachineImages } from '../lib/machinesStore';
   
   export let machine;
+
+  // Load images for the machine on mount
+  onMount(async () => {
+    if (machine?.id) {
+      try {
+        const machineIds = [machine.id];
+        const images = await fetchMachineImages(machineIds);
+        
+        // Update machine with signed image URL
+        if (images[machine.id]) {
+          machine = {
+            ...machine,
+            signedImageUrl: images[machine.id].url,
+            image_caption: images[machine.id].image_caption || machine.image_caption,
+            image_source: images[machine.id].image_source || machine.image_source
+          };
+        }
+      } catch (error) {
+        console.error('Error loading image for machine:', error);
+      }
+    }
+  });
 
   // Lightbox state
   let lightboxOpen = false;
@@ -31,8 +56,45 @@
     source: '',
     machineName: ''
   };
-  
+
+  function getVendorUrl(vendor) {
+    let finalUrl = vendor.url;
+    
+    // Add Amazon affiliate tracking ID for Amazon links
+    if (vendor.url.includes('amazon.com') || vendor.url.includes('amzn.to')) {
+      const affiliateTag = 'espressopicker-20';
+      
+      try {
+        const url = new URL(vendor.url);
+        
+        // For shortened Amazon URLs (amzn.to), add the tag as a query parameter
+        if (vendor.url.includes('amzn.to')) {
+          url.searchParams.set('tag', affiliateTag);
+        } else {
+          // For full Amazon URLs, add the tag parameter
+          url.searchParams.set('tag', affiliateTag);
+        }
+        
+        finalUrl = url.toString();
+      } catch (error) {
+        // Fallback: if URL parsing fails, append manually
+        const separator = vendor.url.includes('?') ? '&' : '?';
+        finalUrl = `${vendor.url}${separator}tag=${affiliateTag}`;
+      }
+    }
+    return finalUrl;
+  }
+
   $: normalizedVendors = normalizeVendors(machine.vendors);
+
+  // Sort vendors to show Amazon first
+  $: sortedVendors = machine?.vendors ? [...normalizeVendors(machine.vendors)].sort((a, b) => {
+    const aIsAmazon = a.name.toLowerCase().includes('amazon');
+    const bIsAmazon = b.name.toLowerCase().includes('amazon');
+    if (aIsAmazon && !bIsAmazon) return -1;
+    if (!aIsAmazon && bIsAmazon) return 1;
+    return 0;
+  }) : [];
 
   // Function to get the best available image URL with fallbacks
   function getImageUrl(machine) {
@@ -70,15 +132,29 @@
     document.body.classList.remove('modal-open');
   }
 
+  // Local helper to style machine type badge consistently with the rest of the site
+  function getMachineTypeClass(machineType) {
+    switch ((machineType || '').toLowerCase()) {
+      case 'semi-automatic':
+        return 'bg-[#fff5d0] text-black';
+      case 'automatic':
+        return 'bg-blue-50 text-blue-800';
+      case 'super-automatic':
+        return 'bg-purple-50 text-black';
+      default:
+        return 'bg-gray-50 text-gray-800';
+    }
+  }
+
   const specLabels = {
     brand: 'Brand',
-    price_usd: 'Price (MSRP)',
+    // price_usd: 'Price (MSRP)', // HIDDEN FOR NOW
     release_year: 'Release Year',
     machine_type: 'Machine Type',
     boiler_configuration: 'Boiler Configuration',
     heating_system: 'Heating System',
     number_of_boilers: 'Number of Boilers',
-    heat_up_seconds: 'Heat-up Time',
+    // heat_up_seconds: 'Heat-up Time', // HIDDEN
     has_pid: 'PID Control',
     pre_infusion: 'Pre-infusion',
     built_in_grinder: 'Built-in Grinder',
@@ -111,8 +187,8 @@
         return formatHeatingSystem(value);
       case 'number_of_boilers':
         return formatNumberOfBoilers(value);
-      case 'heat_up_seconds':
-        return formatHeatupTime(value);
+      // case 'heat_up_seconds':
+      //   return formatHeatupTime(value); // HIDDEN
       case 'has_pid':
         return formatYesNo(value);
       case 'pre_infusion':
@@ -150,105 +226,206 @@
     const value = machine[key];
     return value !== null && value !== undefined && value !== '';
   });
-
-  // Track image loading state
-  let imageLoaded = false;
-  let imageError = false;
-
-  function handleImageLoad() {
-    imageLoaded = true;
-    imageError = false;
-  }
-
-  function handleImageError(event) {
-    imageError = true;
-    // Fallback to placeholder if image fails to load
-    if (event.target.src !== '/placeholder-machine.svg') {
-      event.target.src = '/placeholder-machine.svg';
-    }
-  }
 </script>
 
-<div class="bg-white shadow-lg rounded-lg overflow-hidden">
-  <div class="md:flex">
-    <div class="md:w-1/2 relative bg-gray-100 flex items-center justify-center cursor-pointer hover:bg-gray-200 transition-colors" style="aspect-ratio: 1;" on:click={openLightbox}>
-      <!-- Loading state -->
-      {#if !imageLoaded && !imageError}
-        <div class="w-full h-full bg-gray-200 animate-pulse flex items-center justify-center">
-          <svg class="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-          </svg>
-        </div>
-      {/if}
-      
-      <img 
-        class="max-w-full max-h-full object-contain {!imageLoaded ? 'hidden' : ''}" 
-        src={getImageUrl(machine)}
+<div class="flex flex-col lg:flex-row gap-8 lg:gap-12 p-6 lg:p-8">
+  <!-- Left Column: Image -->
+  <div class="flex-shrink-0 lg:basis-[45%] lg:max-w-[45%]">
+    <div
+      class="w-full aspect-square mx-auto lg:mx-0 relative bg-gray-50 flex items-center justify-center cursor-pointer hover:bg-gray-100 transition-colors rounded-xl group shadow-lg"
+      on:click={openLightbox}
+    >
+      <LazyImage
+        machineId={machine.id}
+        imagePath={machine.image_path}
+        signedImageUrl={machine.signedImageUrl}
         alt={getImageAlt(machine)}
-        title={getImageTitle(machine)}
-        loading="lazy"
-        on:load={handleImageLoad}
-        on:error={handleImageError}
+        containerClass="w-full h-full !rounded-xl"
+        imgClass="p-4 group-hover:scale-105 transition-transform duration-300"
+        fillContainer={true}
       />
-      
-      {#if machine.image_caption && imageLoaded}
-        <div class="absolute bottom-0 left-0 right-0 p-2 bg-black bg-opacity-75 text-white text-sm text-center">
-          {machine.image_caption}
-        </div>
-      {/if}
 
       <!-- Click to expand hint -->
-      <div class="absolute top-2 left-2 bg-black bg-opacity-50 text-white text-xs px-2 py-1 rounded opacity-0 hover:opacity-100 transition-opacity">
-        Click to expand
+      <div
+        class="absolute top-3 right-3 bg-black/60 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+      >
+        <svg
+          class="w-3 h-3 inline-block mr-1"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+          >
+          </path>
+        </svg>
+        Expand
       </div>
     </div>
-    <div class="md:w-1/2 p-8">
-      <h1 class="text-3xl font-bold mb-2 text-gray-900">{machine.model_name || machine.name}</h1>
-      <p class="text-lg text-gray-600 mb-4">{machine.brand}</p>
-      
-      {#if machine.price_usd}
-        <p class="text-xl font-semibold text-gray-900 mb-6">{formatValue('price_usd', machine.price_usd)}</p>
-      {/if}
-      
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-        {#each displaySpecs as [key, label]}
-          <div>
-            <p class="font-semibold text-gray-600">{label}</p>
-            <p class="text-gray-800">{formatValue(key, machine[key])}</p>
-          </div>
-        {/each}
+  </div>
+
+  <!-- Right Column: Details -->
+  <div class="flex-1 min-w-0 lg:flex-1">
+    <!-- Tags -->
+    <div class="mb-6">
+      <div class="flex flex-wrap gap-3">
+        <!-- Machine type badge -->
+        <span class="inline-flex items-center px-4 py-1.5 rounded-full text-xs font-semibold border-2 border-primary {getMachineTypeClass(machine.machine_type)}">
+          {machine.machine_type || 'Espresso Machine'}
+        </span>
+
+        <!-- Boiler configuration badge -->
+        {#if machine.boiler_configuration}
+          <span class="inline-flex items-center px-4 py-1.5 rounded-full text-xs font-semibold border-2 border-primary bg-gray-50 text-gray-800">
+            {machine.boiler_configuration}
+          </span>
+        {/if}
+
+        <!-- PID Control badge -->
+        {#if machine.has_pid}
+          <span class="inline-flex items-center px-4 py-1.5 rounded-full text-xs font-semibold border-2 border-primary bg-green-100 text-gray-800">
+            PID Control
+          </span>
+        {/if}
       </div>
-      
-      {#if normalizedVendors.length > 0}
-        <div class="space-y-2">
-          <h3 class="font-semibold text-gray-700 mb-3">Available from:</h3>
-          {#each normalizedVendors as vendor}
-            <a 
-              href={vendor.url} 
-              target="_blank" 
+    </div>
+
+    <!-- Machine Name and Brand -->
+    <div class="mb-6">
+      <h1 class="font-serif font-bold text-3xl lg:text-4xl text-gray-900 leading-tight mb-3">
+        {machine.model_name || machine.name}
+      </h1>
+      {#if machine.description}
+        <p class="text-lg text-gray-600 italic mb-4">
+          {machine.description}
+        </p>
+      {/if}
+      <div class="flex items-center gap-2 text-gray-500">
+        <span class="font-medium">{machine.brand}</span>
+       
+      </div>
+    </div>
+
+    <!-- Description -->
+    {#if machine.description && machine.description.length > 100}
+      <div class="mb-6">
+        <p class="text-gray-700 leading-relaxed">
+          {machine.description.slice(0, 200)}...
+          <button class="text-primary hover:underline ml-1">Show more</button>
+        </p>
+      </div>
+    {/if}
+
+    <!-- Vendor Links -->
+    {#if sortedVendors.length > 0}
+      <div class="mb-6">
+        <div class="space-y-3">
+          {#each sortedVendors as vendor}
+            {@const isAmazon = vendor.name.toLowerCase().includes('amazon')}
+            <a
+              href={getVendorUrl(vendor)}
+              target="_blank"
               rel="noopener noreferrer"
-              class="w-full text-center bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg transition duration-300 ease-in-out block"
+              class="inline-flex items-center justify-center w-full px-6 py-3 font-semibold rounded-lg transition-all duration-200 active:scale-[0.97] {isAmazon ? 'cta-btn-primary bg-cta text-dark border border-cta-dark hover:bg-cta/90 text-base' : 'cta-btn-secondary bg-white text-gray-800 border border-gray-300 hover:bg-gray-50'}"
             >
-              Buy at {vendor.name}{vendor.price ? ` - ${formatPrice(vendor.price)}` : ''}
+              <span>{isAmazon ? 'Check Price on Amazon' : `Buy at ${vendor.name}`}</span>
             </a>
           {/each}
         </div>
-      {:else}
-        <div class="w-full text-center bg-gray-400 text-white font-bold py-3 px-4 rounded-lg">
-          No vendors available
-        </div>
-      {/if}
+      </div>
+    {/if}
+
+    <!-- Key Stats -->
+    <div class="mb-12 mt-12">
+      <div class="grid grid-cols-3 lg:grid-cols-5 gap-6 text-center">
+        {#if machine.boiler_configuration}
+          <div>
+            <div class="text-2xl lg:text-2xl font-bold text-gray-900">
+              {machine.boiler_configuration.includes('Dual') ? '2' : '1'}
+            </div>
+            <div class="text-sm text-gray-500">Boiler{machine.boiler_configuration.includes('Dual') ? 's' : ''}</div>
+          </div>
+        {/if}
+        
+        {#if machine.portafilter_mm}
+          <div>
+            <div class="text-2xl lg:text-2xl font-bold text-gray-900">{machine.portafilter_mm}mm</div>
+            <div class="text-sm text-gray-500">Portafilter</div>
+          </div>
+        {/if}
+        
+        {#if machine.water_tank_l}
+          <div>
+            <div class="text-2xl lg:text-2xl font-bold text-gray-900">{machine.water_tank_l}L</div>
+            <div class="text-sm text-gray-500">Water Tank</div>
+          </div>
+        {/if}
+        
+        {#if machine.power_watts}
+          <div>
+            <div class="text-2xl lg:text-2xl font-bold text-gray-900">{machine.power_watts}W</div>
+            <div class="text-sm text-gray-500">Power</div>
+          </div>
+        {/if}
+        
+        {#if machine.warranty_years || machine.warranty}
+          <div>
+            <div class="text-2xl lg:text-2xl font-bold text-gray-900">
+              {machine.warranty_years || machine.warranty.replace(/[^0-9]/g, '') || '1'}Y
+            </div>
+            <div class="text-sm text-gray-500">Warranty</div>
+          </div>
+        {/if}
+      </div>
+    </div>
+
+
+
+    <!-- Full Specifications -->
+    <div class="mt-8">
+      <h3 class="text-lg font-serif font-semibold text-gray-900 mb-4">
+        Full Specifications
+      </h3>
+      <div class="grid gap-3">
+        {#each displaySpecs as [key, label]}
+          <div class="flex justify-between items-center py-2 border-b border-gray-200 last:border-b-0">
+            <span class="text-sm font-medium text-gray-700">{label}</span>
+            <span class="text-sm font-semibold text-gray-900 text-right">{formatValue(key, machine[key])}</span>
+          </div>
+        {/each}
+      </div>
     </div>
   </div>
 </div>
 
-<!-- Lightbox Modal -->
-<ImageLightbox 
-  bind:isOpen={lightboxOpen}
-  imageSrc={lightboxImage.src}
-  imageAlt={lightboxImage.alt}
-  imageCaption={lightboxImage.caption}
-  imageSource={lightboxImage.source}
-  machineName={lightboxImage.machineName}
-  on:close={closeLightbox}
-/> 
+{#if lightboxOpen}
+  <ImageLightbox
+    isOpen={lightboxOpen}
+    image={lightboxImage}
+    on:close={closeLightbox}
+  />
+{/if}
+
+<style>
+  .cta-btn-primary {
+    box-shadow: 0px 2px 0px #AF8A1D, inset 0px 3px 4px rgba(255, 255, 255, 0.25);
+    transition: all 200ms ease;
+  }
+
+  .cta-btn-primary:active {
+      box-shadow: 0px 0px 0px #AF8A1D, inset 0px 3px 4px rgba(255, 255, 255, 0.25);
+  }
+
+  .cta-btn-secondary {
+    box-shadow: 0px 2px 0px #d1d5db; /* gray-300 */
+    transition: all 200ms ease;
+  }
+
+  .cta-btn-secondary:active {
+      box-shadow: 0px 0px 0px #d1d5db;
+  }
+</style> 

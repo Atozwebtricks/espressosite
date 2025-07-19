@@ -2,7 +2,7 @@
   import { createEventDispatcher } from 'svelte';
   import { normalizeVendors } from '../lib/vendorUtils';
   import { 
-    formatHeatupTime, 
+    // formatHeatupTime, 
     formatWarranty, 
     formatBuiltInGrinder, 
     formatWaterTank, 
@@ -203,6 +203,14 @@
     checkButtonVisibility();
   }
 
+  function handleImageLoaded(event: CustomEvent) {
+    const { machineId, url } = event.detail;
+    const machineIndex = machines.findIndex(m => m.id === machineId);
+    if (machineIndex !== -1) {
+      machines[machineIndex].signedImageUrl = url;
+    }
+  }
+
   // Check scroll capability when component mounts and when machines change
   $: if (scrollContainer && machines) {
     // Use setTimeout to ensure DOM is updated
@@ -359,8 +367,8 @@
           </button>
         </th>
         
-        <!-- Heat-up Time (sortable) -->
-        <th scope="col" class="px-6 py-4 text-left" aria-sort={getAriaSort('heat_up')}>
+        <!-- Heat-up Time (sortable) - HIDDEN -->
+        <!-- <th scope="col" class="px-6 py-4 text-left" aria-sort={getAriaSort('heat_up')}>
           <button
             class="group inline-flex items-center space-x-1 text-xs font-semibold text-gray-900 uppercase tracking-wider hover:text-primary focus:outline-none focus:text-primary transition-colors duration-150"
             on:click={() => handleSort('heat_up')}
@@ -379,7 +387,7 @@
               {/if}
             </span>
           </button>
-        </th>
+        </th> -->
         
         <!-- PID (sortable) -->
         <th scope="col" class="px-6 py-4 text-left" aria-sort={getAriaSort('pid')}>
@@ -388,7 +396,8 @@
             on:click={() => handleSort('pid')}
             aria-label="Sort by PID"
           >
-            <span>PID</span>
+            <span>PID temperature
+              control</span>
             <span class="ml-2 flex-shrink-0 transition-transform duration-200 {sortColumn === 'pid' ? 'text-primary' : 'text-gray-400'}">
               {#if sortColumn === 'pid'}
                 {#if sortDirection === 'asc'}
@@ -469,8 +478,8 @@
           </button>
         </th>
         
-        <!-- Steam Wand (sortable) -->
-        <th scope="col" class="px-6 py-4 text-left" aria-sort={getAriaSort('steam_wand')}>
+        <!-- Steam Wand (sortable) - HIDDEN FOR NOW -->
+        <!-- <th scope="col" class="px-6 py-4 text-left" aria-sort={getAriaSort('steam_wand')}>
           <button
             class="group inline-flex items-center space-x-1 text-xs font-semibold text-gray-900 uppercase tracking-wider hover:text-primary focus:outline-none focus:text-primary transition-colors duration-150"
             on:click={() => handleSort('steam_wand')}
@@ -489,7 +498,7 @@
               {/if}
             </span>
           </button>
-        </th>
+        </th> -->
         
         <!-- Water Tank (sortable) -->
         <th scope="col" class="px-6 py-4 text-left" aria-sort={getAriaSort('tank')}>
@@ -690,12 +699,14 @@
               aria-label={`View image of ${machine.model_name || machine.name}`}
             >
                              <LazyImage
-                 machineId={machine.id}
-                 imagePath={machine.image_path}
-                alt={getImageAlt(machine)}
-                 containerClass="w-full h-full"
-                 fillContainer={true}
-               />
+              machineId={machine.id}
+              imagePath={machine.image_path}
+              signedImageUrl={machine.signedImageUrl}
+              alt={getImageAlt(machine)}
+              containerClass="w-full h-full"
+              fillContainer={true}
+              on:imageLoaded={handleImageLoaded}
+            />
             </button>
           </td>
           <td class="table-cell-lg whitespace-nowrap sticky-name-cell">
@@ -730,9 +741,10 @@
           <td class="table-cell-lg whitespace-nowrap text-sm text-gray-600 font-medium">
             {formatHeatingSystem(machine.heating_system)}
           </td>
-          <td class="table-cell-lg whitespace-nowrap text-sm text-gray-600 font-medium">
+          <!-- Heat-up Time cell - HIDDEN -->
+          <!-- <td class="table-cell-lg whitespace-nowrap text-sm text-gray-600 font-medium">
             {formatHeatupTime(machine.heat_up_seconds)}
-          </td>
+          </td> -->
           <td class="table-cell-lg whitespace-nowrap text-sm text-gray-600 font-medium">
             <StatusPill value={machine.has_pid || machine.pid} />
           </td>
@@ -749,9 +761,9 @@
           <td class="table-cell-md whitespace-nowrap text-sm text-gray-600 font-medium">
             {formatPortafilter(machine.portafilter_mm)}
           </td>
-          <td class="table-cell-md whitespace-nowrap text-sm text-gray-600 font-medium">
+          <!-- <td class="table-cell-md whitespace-nowrap text-sm text-gray-600 font-medium">
             {formatSteamWand(machine.steam_wand_type)}
-          </td>
+          </td> -->
           <td class="table-cell-md whitespace-nowrap text-sm text-gray-600 font-medium">
             {formatWaterTank(machine.water_tank_l || (machine.reservoir_ml ? machine.reservoir_ml / 1000 : null))}
           </td>

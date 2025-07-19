@@ -139,7 +139,7 @@
           />
           
           <!-- Subtle loading placeholder behind image -->
-          <div class="absolute inset-0 bg-gray-200 rounded-xl -z-10"></div>
+          <div class="absolute inset-0 bg-white rounded-xl -z-10"></div>
         </div>
 
         <!-- Error state -->
@@ -181,26 +181,14 @@
             {/if}
             
             <!-- Keyboard shortcut hint centered at bottom -->
-            <div class="pt-2 border-t border-gray-200/60">
-              <div class="inline-flex items-center justify-center bg-gray-800/80 text-white text-xs px-3 py-1.5 rounded-md backdrop-blur-sm">
-                <svg class="w-3 h-3 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1721 9z"></path>
-                </svg>
-                Press ESC to close
-              </div>
-            </div>
+            
           </div>
         </div>
       {:else}
         <!-- Show keyboard shortcut even when no caption/source -->
         <div class="bg-gradient-to-r from-gray-50 to-gray-100 px-6 py-4 border-t border-gray-200">
           <div class="text-center">
-            <div class="inline-flex items-center justify-center bg-gray-800/80 text-white text-xs px-3 py-1.5 rounded-md backdrop-blur-sm">
-              <svg class="w-3 h-3 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"></path>
-              </svg>
-              Press ESC to close
-            </div>
+           
           </div>
         </div>
       {/if}

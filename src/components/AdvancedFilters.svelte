@@ -29,7 +29,7 @@
     'Thermocoil'
   ];
 
-  $: preInfusionOptions = ['None', 'Mechanical', 'Programmable'];
+  $: preInfusionOptions = ['Yes', 'No'];
   $: waterFilterOptions = ['Has Filter', 'No Filter'];
   $: buildMaterials = [...new Set(machines.map(m => m.build_material))].filter(Boolean).sort();
   $: warrantyYears = [1, 2, 3, 4, 5];
@@ -178,7 +178,7 @@
 <!-- Overlay -->
 {#if isOpen}
   <div 
-    class="fixed inset-0 bg-[#202020ad] z-40 transition-opacity duration-300"
+    class="fixed inset-0 bg-[#202020ad] z-60 transition-opacity duration-300"
     on:click={() => isOpen = false}
     on:keydown={(e) => e.key === 'Escape' && (isOpen = false)}
     role="button"
@@ -188,7 +188,7 @@
 {/if}
 
 <!-- Side Drawer -->
-<div class="fixed top-0 right-0 h-full w-full sm:w-96 bg-white shadow-xl z-50 transform transition-transform duration-300 ease-in-out {isOpen ? 'translate-x-0' : 'translate-x-full'}">
+<div class="fixed top-0 right-0 h-full w-full sm:w-96 bg-white shadow-xl z-90 transform transition-transform duration-300 ease-in-out {isOpen ? 'translate-x-0' : 'translate-x-full'}">
   <!-- Header -->
   <div class="flex items-center justify-between p-6 border-b border-gray-200">
     <div class="flex items-center gap-3">

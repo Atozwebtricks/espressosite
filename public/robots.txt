@@ -1,0 +1,16 @@
+User-agent: *
+Allow: /
+
+# Disallow admin or internal pages (add if you have any)
+Disallow: /admin/
+Disallow: /_headers
+Disallow: /.well-known/
+
+# Sitemap (update with your actual production domain)
+Sitemap: https://your-domain.pages.dev/sitemap.xml
+
+# Crawl-delay (optional, helps prevent overwhelming the server)
+Crawl-delay: 1
+
+# Cache policy for crawlers
+Cache-Control: public, max-age=86400 

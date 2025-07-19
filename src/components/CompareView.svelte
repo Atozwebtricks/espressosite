@@ -1,7 +1,8 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import { normalizeVendors, formatPrice } from '../lib/vendorUtils';
   import { 
-    formatHeatupTime, 
+    // formatHeatupTime, 
     formatWarranty, 
     formatBuiltInGrinder, 
     formatWaterTank, 
@@ -18,6 +19,7 @@
     formatSteamWand,
     formatPreInfusion
   } from '../lib/formatters';
+  import { fetchMachineImages } from '../lib/machinesStore';
   import ImageLightbox from './ImageLightbox.svelte';
   import StatusPill from './StatusPill.svelte';
   import LazyImage from './LazyImage.svelte';
@@ -25,11 +27,43 @@
   
   export let machines: any[];
 
-  const machine1 = machines[0];
-  const machine2 = machines[1];
+  let machine1 = machines?.[0];
+  let machine2 = machines?.[1];
   
-  $: normalizedVendors1 = normalizeVendors(machine1.vendors);
-  $: normalizedVendors2 = normalizeVendors(machine2.vendors);
+  $: normalizedVendors1 = normalizeVendors(machine1?.vendors);
+  $: normalizedVendors2 = normalizeVendors(machine2?.vendors);
+
+  // Load images for both machines on mount
+  onMount(async () => {
+    if (machine1?.id && machine2?.id) {
+      try {
+        const machineIds = [machine1.id, machine2.id];
+        const images = await fetchMachineImages(machineIds);
+        
+        // Update machine1 with signed image URL
+        if (images[machine1.id]) {
+          machine1 = {
+            ...machine1,
+            signedImageUrl: images[machine1.id].url,
+            image_caption: images[machine1.id].image_caption || machine1.image_caption,
+            image_source: images[machine1.id].image_source || machine1.image_source
+          };
+        }
+        
+        // Update machine2 with signed image URL
+        if (images[machine2.id]) {
+          machine2 = {
+            ...machine2,
+            signedImageUrl: images[machine2.id].url,
+            image_caption: images[machine2.id].image_caption || machine2.image_caption,
+            image_source: images[machine2.id].image_source || machine2.image_source
+          };
+        }
+      } catch (error) {
+        console.error('Error loading images for comparison:', error);
+      }
+    }
+  });
 
   // Mobile view toggle state
   let mobileViewMode: 'stacked' | 'side-by-side' = 'stacked';
@@ -107,8 +141,8 @@
         return formatHeatingSystem(value);
       case 'number_of_boilers':
         return formatNumberOfBoilers(value);
-      case 'heat_up_seconds':
-        return formatHeatupTime(value);
+          // case 'heat_up_seconds':
+    //   return formatHeatupTime(value); // HIDDEN
       case 'has_pid':
         return formatYesNo(value);
       case 'pre_infusion':
@@ -147,12 +181,12 @@
     { key: 'boiler_configuration', label: 'Boiler Configuration' },
     { key: 'heating_system', label: 'Heating System' },
     { key: 'number_of_boilers', label: 'Number of Boilers' },
-    { key: 'heat_up_seconds', label: 'Heat-up Time' },
+    // { key: 'heat_up_seconds', label: 'Heat-up Time' }, // HIDDEN
     { key: 'has_pid', label: 'PID Control', isBooleanLike: true },
     { key: 'pre_infusion', label: 'Pre-infusion', isBooleanLike: true },
     { key: 'built_in_grinder', label: 'Built-in Grinder' },
     { key: 'portafilter_mm', label: 'Portafilter Size' },
-    { key: 'steam_wand_type', label: 'Steam Wand' },
+    // { key: 'steam_wand_type', label: 'Steam Wand' }, // HIDDEN FOR NOW
     { key: 'is_plumbable', label: 'Plumbable', isBooleanLike: true },
     { key: 'water_tank_l', label: 'Water Tank' },
     { key: 'has_water_filter', label: 'Water Filter Compatible', isBooleanLike: true },
@@ -193,6 +227,7 @@
 
 <svelte:window on:click={handleClickOutside} />
 
+{#if machine1 && machine2}
 <div class="overflow-hidden">
   <!-- Header Section -->
   <div class="mb-8 lg:mb-16">
@@ -250,6 +285,7 @@
             <LazyImage
               machineId={machine1.id}
               imagePath={machine1.image_path}
+              signedImageUrl={machine1.signedImageUrl}
               alt={getImageAlt(machine1)}
               containerClass="w-full h-full !rounded-xl shadow-md"
               imgClass="group-hover:scale-105 p-4 transition-transform duration-300"
@@ -309,6 +345,7 @@
             <LazyImage
               machineId={machine2.id}
               imagePath={machine2.image_path}
+              signedImageUrl={machine2.signedImageUrl}
               alt={getImageAlt(machine2)}
               containerClass="w-full h-full !rounded-xl shadow-md"
               imgClass="group-hover:scale-105 p-4 transition-transform duration-300"
@@ -370,13 +407,14 @@
           <div class="p-4">
             <div class="cursor-pointer transition-opacity duration-200 group mb-4" on:click={() => openLightbox(machine1)}>
               <div class="aspect-square w-full">
-                <LazyImage
-                  machineId={machine1.id}
-                  imagePath={machine1.image_path}
-                  alt={getImageAlt(machine1)}
-                  containerClass="w-full h-full !rounded-xl shadow-md"
-                  imgClass="group-hover:scale-105 p-4 transition-transform duration-300"
-                />
+                            <LazyImage
+              machineId={machine1.id}
+              imagePath={machine1.image_path}
+              signedImageUrl={machine1.signedImageUrl}
+              alt={getImageAlt(machine1)}
+              containerClass="w-full h-full !rounded-xl shadow-md"
+              imgClass="group-hover:scale-105 p-4 transition-transform duration-300"
+            />
               </div>
             </div>
             
@@ -432,6 +470,7 @@
                 <LazyImage
                   machineId={machine2.id}
                   imagePath={machine2.image_path}
+                  signedImageUrl={machine2.signedImageUrl}
                   alt={getImageAlt(machine2)}
                   containerClass="w-full h-full !rounded-xl shadow-md"
                   imgClass="group-hover:scale-105 p-4 transition-transform duration-300"
@@ -521,6 +560,7 @@
                   <LazyImage
                     machineId={machine1.id}
                     imagePath={machine1.image_path}
+                    signedImageUrl={machine1.signedImageUrl}
                     alt={getImageAlt(machine1)}
                      containerClass="w-full h-full !rounded-2xl shadow-md"
                     imgClass="group-hover:scale-105 p-8 transition-transform duration-300 h-full"
@@ -534,6 +574,7 @@
                   <LazyImage
                     machineId={machine2.id}
                     imagePath={machine2.image_path}
+                    signedImageUrl={machine2.signedImageUrl}
                     alt={getImageAlt(machine2)}
                     containerClass="w-full h-full !rounded-2xl shadow-md"
                     imgClass="group-hover:scale-105 p-8 transition-transform duration-300"
@@ -621,6 +662,11 @@
   machineName={lightboxImage.machineName}
   on:close={closeLightbox}
 />
+{:else}
+  <div class="text-center py-12">
+    <p class="text-gray-600">Loading comparison data...</p>
+  </div>
+{/if}
 
 <style>
   /* Custom scrollbar styling to match MachineTable */

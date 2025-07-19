@@ -1,0 +1,59 @@
+# PRODUCTION ENVIRONMENT VARIABLES FOR CLOUDFLARE PAGES
+# Copy these exact variables to your Cloudflare Pages environment settings
+
+# =================================================================
+# REQUIRED: Replace with your actual Supabase project values
+# =================================================================
+
+# Supabase Configuration (Public - Safe to expose)
+PUBLIC_SUPABASE_URL=https://your-project-id.supabase.co
+PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.your-anon-key-here
+
+# =================================================================
+# OPTIONAL: Build Configuration
+# =================================================================
+
+# Node.js Version (Recommended for Astro + Svelte)
+NODE_VERSION=18.17.0
+
+# Build Settings (these match your package.json scripts)
+BUILD_COMMAND=npm run build
+BUILD_OUTPUT_DIRECTORY=dist
+
+# =================================================================
+# IMPORTANT SECURITY NOTES:
+# =================================================================
+#
+# ✅ PUBLIC_SUPABASE_URL: Safe to expose (needed for frontend API calls)
+# ✅ PUBLIC_SUPABASE_ANON_KEY: Safe to expose (limited permissions via RLS)
+# ❌ SUPABASE_SERVICE_ROLE_KEY: NEVER add this to Cloudflare Pages!
+#    (Only used server-side in .astro files during SSR)
+#
+# Your RLS policies ensure the anon key can only:
+# - SELECT (read) data from espresso_machines table
+# - Cannot INSERT, UPDATE, or DELETE without authentication
+#
+# =================================================================
+# WHERE TO ADD THESE IN CLOUDFLARE PAGES:
+# =================================================================
+#
+# 1. Go to Cloudflare Pages Dashboard
+# 2. Select your project
+# 3. Go to Settings > Environment variables
+# 4. Click "Add variable" for each one above
+# 5. Set "Production" environment
+#
+# =================================================================
+# VERIFICATION AFTER DEPLOYMENT:
+# =================================================================
+#
+# Test that environment variables are working:
+# 1. Check browser network tab for API calls to your Supabase URL
+# 2. Verify machine data loads on your deployed site
+# 3. Check console for any "undefined" environment variable errors
+#
+# =================================================================
+
+# Example of what your actual values might look like:
+# PUBLIC_SUPABASE_URL=https://abcdefghijklmnop.supabase.co
+# PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFiY2RlZmdoaWprbG1ub3AiLCJyb2xlIjoiYW5vbiIsImlhdCI6MTY0MjQxMjM0MCwiZXhwIjoxOTU3OTg4MzQwfQ.example-signature-here 

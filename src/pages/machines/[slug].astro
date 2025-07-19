@@ -1,42 +1,205 @@
 ---
-import { supabase, fetchMachineImage } from '../../lib/supabase';
+import { createClient } from '@supabase/supabase-js';
+import { fetchMachineImage } from '../../lib/supabase';
 import Layout from '../../layouts/Layout.astro';
 import MachineSpecs from '../../components/MachineSpecs.svelte';
 
-// Remove getStaticPaths to enable server-side rendering
-// This allows dynamic routes without pre-generating all pages
+// Server-side rendering with client-side store for persistence
+
+// Create Supabase client for server-side rendering
+const supabase = createClient(
+  import.meta.env.SUPABASE_URL || import.meta.env.PUBLIC_SUPABASE_URL,
+  import.meta.env.SUPABASE_SERVICE_ROLE_KEY || import.meta.env.PUBLIC_SUPABASE_ANON_KEY
+);
 
 const { slug } = Astro.params;
-const { data: machine, error } = await supabase
-  .from('espresso_machines')
-  .select('*')
-  .eq('id', slug)
-  .single();
 
-if (error && error.code !== 'PGRST116') { // PGRST116 is "No rows found"
-  console.error('Error fetching machine details:', error);
+let machine = null;
+let machineWithImage = null;
+let pageTitle = "Espresso Machine";
+let pageDescription = "Espresso machine specifications and details";
+let structuredData = {};
+
+try {
+  console.log('SSR: Fetching machine details for:', slug);
+  const { data: fetchedMachine, error } = await supabase
+    .from('espresso_machines')
+    .select('*')
+    .eq('id', slug)
+    .single();
+
+  if (error && error.code !== 'PGRST116') { // PGRST116 is "No rows found"
+    console.error('SSR: Error fetching machine details:', error);
+    return new Response(null, { status: 500 });
+  }
+
+  if (!fetchedMachine) {
+    return new Response(null, { status: 404 });
+  }
+
+  machine = fetchedMachine;
+
+  // Don't fetch image on server-side for faster loading
+  // Images will be loaded client-side
+  machineWithImage = {
+    ...machine,
+    signedImageUrl: null, // Will be loaded client-side
+    image_caption: machine.image_caption,
+    image_source: machine.image_source,
+  };
+
+  // Generate comprehensive SEO data
+  const machineName = machine.model_name || machine.name;
+  const brandName = machine.brand;
+  const machineType = machine.machine_type || 'Espresso Machine';
+  
+  pageTitle = `${machineName} by ${brandName} - Complete Review & Specs | Espresso Machine Picker`;
+  pageDescription = `Detailed review of the ${machineName} espresso machine by ${brandName}. Compare features, specifications, and find the best deals. ${machineType} with comprehensive buying guide.`;
+  
+  // Enhanced structured data for better SEO
+  structuredData = {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    "name": machineName,
+    "brand": {
+      "@type": "Brand", 
+      "name": brandName
+    },
+    "description": pageDescription,
+    "category": "Kitchen Appliance",
+    "productID": machine.id,
+    "sku": machine.id,
+    "gtin": machine.model_number || machine.id,
+    "additionalType": "https://schema.org/Product",
+    "url": `${Astro.site}machines/${machine.id}`,
+    "aggregateRating": machine.rating ? {
+      "@type": "AggregateRating",
+      "ratingValue": machine.rating,
+      "bestRating": "5",
+      "worstRating": "1"
+    } : undefined,
+    "review": machine.review_summary ? {
+      "@type": "Review",
+      "reviewBody": machine.review_summary,
+      "author": {
+        "@type": "Organization",
+        "name": "Espresso Machine Picker"
+      }
+    } : undefined,
+    "manufacturer": {
+      "@type": "Organization",
+      "name": brandName
+    },
+    "additionalProperty": [
+      machine.machine_type ? {
+        "@type": "PropertyValue",
+        "name": "Machine Type",
+        "value": machine.machine_type
+      } : null,
+      machine.boiler_configuration ? {
+        "@type": "PropertyValue", 
+        "name": "Boiler Configuration",
+        "value": machine.boiler_configuration
+      } : null,
+      machine.has_pid ? {
+        "@type": "PropertyValue",
+        "name": "PID Control",
+        "value": machine.has_pid ? "Yes" : "No"
+      } : null
+    ].filter(Boolean)
+  };
+
+  console.log('SSR: Successfully prepared machine detail data');
+
+  // Add cache control headers for ISR
+  Astro.response.headers.set(
+    'Cache-Control',
+    'public, max-age=0, s-maxage=300, stale-while-revalidate=3600'
+  );
+} catch (err) {
+  console.error('SSR: Error in machine detail page:', err);
   return new Response(null, { status: 500 });
 }
 
-if (!machine) {
-  return new Response(null, { status: 404 });
-}
-
-// Fetch signed URL for machine image (higher resolution for detail page)
-const machineImage = await fetchMachineImage(machine.id, 800);
-
-// Attach signed image URL to machine data
-const machineWithImage = {
-  ...machine,
-  signedImageUrl: machineImage?.url || null,
-  image_caption: machineImage?.image_caption || machine.image_caption,
-  image_source: machineImage?.image_source || machine.image_source,
+// Additional meta tags for enhanced SEO
+const metaTags = {
+  robots: 'index, follow',
+  canonical: `${Astro.site}machines/${machine?.id}`,
+  ogTitle: pageTitle,
+  ogDescription: pageDescription,
+  ogType: 'product',
+  ogUrl: `${Astro.site}machines/${machine?.id}`,
+  ogSiteName: 'Espresso Machine Picker',
+  twitterCard: 'summary_large_image',
+  twitterTitle: pageTitle,
+  twitterDescription: pageDescription,
+  keywords: `${machine?.model_name}, ${machine?.brand}, espresso machine, coffee machine, ${machine?.machine_type}, review, specs, comparison, buying guide`
 };
 ---
 
-<Layout title={machine.model_name || machine.name}>
-  <main class="container mx-auto p-4">
-    <a href="/" class="text-blue-500 hover:underline mb-4 inline-block">&larr; Back to all machines</a>
-    <MachineSpecs client:load machine={machineWithImage} />
-  </main>
+<Layout title={pageTitle} description={pageDescription}>
+  <!-- Enhanced SEO Meta Tags -->
+  <meta name="robots" content={metaTags.robots} slot="head" />
+  <meta name="keywords" content={metaTags.keywords} slot="head" />
+  <link rel="canonical" href={metaTags.canonical} slot="head" />
+  
+  <!-- Open Graph Meta Tags -->
+  <meta property="og:title" content={metaTags.ogTitle} slot="head" />
+  <meta property="og:description" content={metaTags.ogDescription} slot="head" />
+  <meta property="og:type" content={metaTags.ogType} slot="head" />
+  <meta property="og:url" content={metaTags.ogUrl} slot="head" />
+  <meta property="og:site_name" content={metaTags.ogSiteName} slot="head" />
+  
+  <!-- Twitter Card Meta Tags -->
+  <meta name="twitter:card" content={metaTags.twitterCard} slot="head" />
+  <meta name="twitter:title" content={metaTags.twitterTitle} slot="head" />
+  <meta name="twitter:description" content={metaTags.twitterDescription} slot="head" />
+  
+  <!-- Structured Data -->
+  <script type="application/ld+json" slot="head" set:html={JSON.stringify(structuredData)}></script>
+
+  <div class="">
+    <!-- Back Navigation -->
+    <section class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-4">
+      <a href="/" class="text-primary hover:underline mb-6 block underline-offset-4 text-center sm:text-left underline font-medium">&larr; Back to all machines</a>
+
+    </section>
+
+    <!-- Main Content -->
+    <section class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
+      <div class="bg-white rounded-xl border-2 border-primary shadow-lg overflow-hidden">
+        <MachineSpecs client:visible machine={machineWithImage} />
+      </div>
+    </section>
+  </div>
+
+  <!-- Divider -->
+  <div class="h-[1px] bg-gray-300 w-full"></div>
+
+  <!-- Browse All Action -->
+  <section class="max-w-2xl mx-auto px-5 pb-4 pt-16">
+    <div class="text-center mb-8">
+      <div class="w-12 h-12 mx-auto mb-4 rounded-full bg-primary/10 border-2 border-primary/30 flex items-center justify-center">
+        <svg class="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+        </svg>
+      </div>
+      <h2 class="font-serif font-bold text-primary text-2xl sm:text-3xl mb-4">
+        Explore More Options
+      </h2>
+      <p class="text-gray-700 max-w-xl mx-auto mb-6">
+        Browse our complete collection of espresso machines with advanced filters and sorting options to find your perfect match.
+      </p>
+      <a 
+      href="/" 
+      class="inline-flex items-center gap-2 px-6 py-3 bg-primary text-white font-semibold rounded-lg hover:bg-primary/90 transition-colors duration-200 shadow-sm hover:shadow-md"
+    >
+      View All Machines
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+      </svg>
+    </a>
+    </div>
+
+  </section>
 </Layout> 

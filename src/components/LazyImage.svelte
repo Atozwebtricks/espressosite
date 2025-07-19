@@ -1,9 +1,10 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
-  import { createClient } from '@supabase/supabase-js';
+  import { onMount, createEventDispatcher } from 'svelte';
+  import { fetchMachineImage } from '../lib/machinesStore';
 
   export let machineId: string;
   export let imagePath: string | null = null;
+  export let signedImageUrl: string | null = null; // Pre-loaded image URL
   export let alt: string = '';
   export let title: string = '';
   export let containerClass: string = 'w-16 h-16';
@@ -13,32 +14,35 @@
   let imageUrl: string | null = null;
   let loading = true;
   let error = false;
-
-  // Initialize Supabase client
-  const supabaseUrl = import.meta.env.PUBLIC_SUPABASE_URL;
-  const supabaseAnonKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY;
-  const supabase = createClient(supabaseUrl, supabaseAnonKey);
+  const dispatch = createEventDispatcher();
 
   async function loadImage() {
-    if (!imagePath) {
+    // First, check if we already have a signed URL (pre-loaded)
+    if (signedImageUrl) {
+      imageUrl = signedImageUrl;
       loading = false;
       return;
     }
 
-    try {
-      console.log(`Loading image for machine ${machineId}: ${imagePath}`);
-      
-      const { data: signed, error: signError } = await supabase.storage
-        .from('espresso-machine-images')
-        .createSignedUrl(imagePath, 60 * 60 * 24, {
-          transform: { width: 400, resize: 'contain', quality: 100 }
-        });
+    // If no pre-loaded URL and no image path, show placeholder
+    if (!imagePath) {
+      loading = false;
+      error = true;
+      return;
+    }
 
-      if (signError || !signed?.signedUrl) {
-        console.warn(`❌ Image not found for machine ${machineId} - path: ${imagePath}`, signError);
+    // Fallback: try to fetch the image
+    try {
+      console.log(`Fetching image for machine ${machineId}: ${imagePath}`);
+      
+      const imageData = await fetchMachineImage(machineId, 400);
+
+      if (!imageData || !imageData.url) {
+        console.warn(`❌ Image not found for machine ${machineId} - path: ${imagePath}`);
         error = true;
       } else {
-        imageUrl = signed.signedUrl;
+        imageUrl = imageData.url;
+        dispatch('imageLoaded', { machineId, url: imageUrl });
       }
     } catch (err) {
       console.error(`Error loading image for machine ${machineId}:`, err);
@@ -49,12 +53,23 @@
   }
 
   onMount(() => {
-    // Small delay to avoid overwhelming the storage API
-    setTimeout(loadImage, Math.random() * 100);
+    // Load immediately if we have a signed URL, otherwise add small delay
+    if (signedImageUrl) {
+      loadImage();
+    } else {
+      setTimeout(loadImage, Math.random() * 100);
+    }
   });
+
+  // Reactively update when signedImageUrl changes
+  $: if (signedImageUrl && signedImageUrl !== imageUrl) {
+    imageUrl = signedImageUrl;
+    loading = false;
+    error = false;
+  }
 </script>
 
-<div class="bg-white rounded overflow-hidden flex items-center justify-center cursor-pointer hover:bg-gray-200 transition-colors {containerClass}">
+<div class="bg-white rounded overflow-hidden flex items-center justify-center cursor-pointer transition-colors {containerClass}">
   {#if loading}
     <!-- Loading placeholder -->
     <div class="animate-pulse bg-gray-200 h-full w-full flex items-center justify-center">
@@ -91,6 +106,11 @@
       {alt} 
       {title} 
       loading="lazy"
+      on:error={() => {
+        console.warn(`Image failed to load: ${imageUrl}`);
+        error = true;
+        imageUrl = null;
+      }}
     />
   {/if}
 </div> 

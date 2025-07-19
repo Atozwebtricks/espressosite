@@ -4,12 +4,30 @@
   import MachineTable from './MachineTable.svelte';
   import CompareTray from './CompareTray.svelte';
   import Pagination from './Pagination.svelte';
-  import { fetchMachineImages } from '../lib/supabase';
+  import { fetchMachineImages } from '../lib/machinesStore';
+  import { machinesStore } from '../lib/machinesStore';
   import { onMount } from 'svelte';
 
   export let allMachines: any[] = [];
 
+  // Subscribe to the machines store for live updates
+  $: {
+    // If store has more recent data, use it; otherwise use SSR data
+    if ($machinesStore.machines.length > 0 && $machinesStore.lastUpdated > 0) {
+      allMachines = $machinesStore.machines;
+    }
+  }
+
   let filteredMachines = allMachines;
+  let sortedMachines: any[] = [];
+  let paginatedMachines: any[] = [];
+
+  // Store state for UI feedback
+  $: storeLoading = $machinesStore.loading;
+  $: storeError = $machinesStore.error;
+  
+  // Track if this is a background refresh (when we have data but it's being refreshed)
+  $: isBackgroundRefresh = storeLoading && allMachines.length > 0;
   let selectedMachines: any[] = [];
   
   // Pagination state
@@ -35,6 +53,7 @@
 
   // URL parameter sync state
   let isInitialized = false;
+  let isInitializing = false; // Track if we're still in the initial setup phase
 
   // Sortable columns configuration - moved from MachineTable.svelte
   const sortableColumns = [
@@ -43,7 +62,7 @@
     { key: 'type', field: 'machine_type', type: 'string', label: 'Type' },
     { key: 'boiler_config', field: 'boiler_configuration', type: 'string', label: 'Boiler Config' },
     { key: 'heating_system', field: 'heating_system', type: 'string', label: 'Heating System' },
-    { key: 'heat_up', field: 'heat_up_seconds', type: 'number', label: 'Heat-up' },
+    // { key: 'heat_up', field: 'heat_up_seconds', type: 'number', label: 'Heat-up' }, // HIDDEN
     { key: 'pid', field: 'has_pid', type: 'boolean', label: 'PID' },
     { key: 'pre_infusion', field: 'pre_infusion', type: 'string', label: 'Pre-infusion' },
     { key: 'grinder', field: 'built_in_grinder', type: 'string', label: 'Grinder' },
@@ -114,16 +133,17 @@
     }
     
     // Parse numeric filters
-    if (params.has('maxHeatUp')) {
-      advancedFilters.maxHeatUpTime = Number(params.get('maxHeatUp'));
-    }
+    // Heat-up filter HIDDEN
+    // if (params.has('maxHeatUp')) {
+    //   advancedFilters.maxHeatUpTime = Number(params.get('maxHeatUp'));
+    // }
     if (params.has('minTank')) {
       advancedFilters.minWaterTank = Number(params.get('minTank'));
     }
     
-    // Parse sorting
-    const sortCol = params.get('sort');
-    const sortDir = params.get('dir') as 'asc' | 'desc';
+    // Don't parse sorting from URL - sorting is not persisted
+    // const sortCol = params.get('sort');
+    // const sortDir = params.get('dir') as 'asc' | 'desc';
     
     // Parse pagination
     const page = Number(params.get('page')) || 1;
@@ -132,14 +152,14 @@
     return {
       quickFilters,
       advancedFilters,
-      sortColumn: sortCol,
-      sortDirection: sortDir || 'asc',
+      sortColumn: null, // Don't restore sorting from URL
+      sortDirection: 'asc',
       currentPage: page,
       itemsPerPage: perPage
     };
   }
 
-  function updateURL(filters: any, sort: { column: string | null; direction: 'asc' | 'desc' }, pagination: { page: number; perPage: number }) {
+  function updateURL(filters: any, pagination: { page: number; perPage: number }) {
     if (typeof window === 'undefined' || !isInitialized) return;
     
     const params = new URLSearchParams();
@@ -190,18 +210,19 @@
     }
     
     // Add numeric filters
-    if (filters.maxHeatUpTime !== undefined) {
-      params.set('maxHeatUp', filters.maxHeatUpTime.toString());
-    }
+    // Heat-up filter HIDDEN
+    // if (filters.maxHeatUpTime !== undefined) {
+    //   params.set('maxHeatUp', filters.maxHeatUpTime.toString());
+    // }
     if (filters.minWaterTank !== undefined) {
       params.set('minTank', filters.minWaterTank.toString());
     }
     
-    // Add sorting
-    if (sort.column) {
-      params.set('sort', sort.column);
-      params.set('dir', sort.direction);
-    }
+    // Don't add sorting to URL - sorting is not persisted
+    // if (sort.column) {
+    //   params.set('sort', sort.column);
+    //   params.set('dir', sort.direction);
+    // }
     
     // Add pagination (only if not defaults)
     if (pagination.page > 1) {
@@ -228,11 +249,44 @@
   }
 
   // Sorted and paginated results
-  $: sortedMachines = sortMachines(filteredMachines, sortColumn, sortDirection);
-  $: paginatedMachines = sortedMachines.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
+  $: {
+    console.log('🔄 REACTIVE: sortedMachines updating', {
+      filteredMachinesLength: filteredMachines.length,
+      sortColumn,
+      sortDirection,
+      timestamp: new Date().toISOString()
+    });
+    const newSortedMachines = sortMachines(filteredMachines, sortColumn, sortDirection);
+    console.log('✅ REACTIVE: sortedMachines updated', {
+      sortedMachinesLength: newSortedMachines.length,
+      sortColumn,
+      sortDirection
+    });
+    sortedMachines = newSortedMachines;
+  }
+  
+  // Simple reactive pagination - updates immediately when currentPage or sortedMachines change
+  $: {
+    console.log('🔄 REACTIVE: paginatedMachines updating', {
+      currentPage,
+      itemsPerPage,
+      sortedMachinesLength: sortedMachines.length,
+      startIndex: (currentPage - 1) * itemsPerPage,
+      endIndex: currentPage * itemsPerPage,
+      timestamp: new Date().toISOString()
+    });
+    const newPaginatedMachines = sortedMachines.slice(
+      (currentPage - 1) * itemsPerPage,
+      currentPage * itemsPerPage
+    );
+    console.log('✅ REACTIVE: paginatedMachines updated', {
+      paginatedMachinesLength: newPaginatedMachines.length,
+      currentPage,
+      itemsPerPage,
+      actualRange: `${(currentPage - 1) * itemsPerPage + 1}-${Math.min(currentPage * itemsPerPage, sortedMachines.length)}`
+    });
+    paginatedMachines = newPaginatedMachines;
+  }
 
   // Load images for paginated machines that don't have them yet
   $: {
@@ -252,55 +306,50 @@
 
     const machineIds = machinesNeedingImages.map(machine => machine.id);
     
-    // Mark as loading
-    machineIds.forEach(id => loadingImages.add(id));
-    loadingImages = new Set(loadingImages);
-
+    // Mark these machines as loading
+    loadingImages = new Set([...loadingImages, ...machineIds]);
+    
     try {
-      console.log(`Loading images for ${machineIds.length} additional machines...`);
-      const newImages = await fetchMachineImages(machineIds, 400);
+      const images = await fetchMachineImages(machineIds);
       
-      // Update machines with new image URLs
+      // Update the allMachines array with the loaded images
       allMachines = allMachines.map(machine => {
-        if (newImages[machine.id]) {
+        const imageData = images[machine.id];
+        if (imageData) {
+          loadedImages.add(machine.id);
           return {
             ...machine,
-            signedImageUrl: newImages[machine.id].url,
-            image_caption: newImages[machine.id].image_caption || machine.image_caption,
-            image_source: newImages[machine.id].image_source || machine.image_source,
+            signedImageUrl: imageData.url,
+            image_caption: imageData.image_caption || machine.image_caption,
+            image_source: imageData.image_source || machine.image_source
           };
         }
         return machine;
       });
-
-      // Mark as loaded
-      machineIds.forEach(id => {
-        loadedImages.add(id);
-        loadingImages.delete(id);
-      });
-      loadedImages = new Set(loadedImages);
+      
+      // Remove from loading set
+      machineIds.forEach(id => loadingImages.delete(id));
       loadingImages = new Set(loadingImages);
-
+      
     } catch (error) {
-      console.error('Error loading additional images:', error);
-      // Remove from loading set on error
+      console.error('Error loading images:', error);
+      // Remove from loading set even on error
       machineIds.forEach(id => loadingImages.delete(id));
       loadingImages = new Set(loadingImages);
     }
   }
 
-  // Sorting functions - moved from MachineTable.svelte
-  function sortMachines(machineList: any[], column: string | null, direction: 'asc' | 'desc') {
-    if (!column) return machineList;
-
+  function sortMachines(machines: any[], column: string | null, direction: 'asc' | 'desc'): any[] {
+    if (!column) return machines;
+    
     const columnConfig = sortableColumns.find(col => col.key === column);
-    if (!columnConfig) return machineList;
-
-    return [...machineList].sort((a, b) => {
+    if (!columnConfig) return machines;
+    
+    return [...machines].sort((a, b) => {
       let aValue = getNestedValue(a, columnConfig.field);
       let bValue = getNestedValue(b, columnConfig.field);
-
-      // Handle special cases
+      
+      // Handle special cases and column mappings
       if (columnConfig.key === 'name') {
         aValue = a.model_name || a.name;
         bValue = b.model_name || b.name;
@@ -365,25 +414,151 @@
       sortDirection = 'asc';
     }
     
-    // Reset to first page when sorting changes
+    // Reset to page 1 when sorting - better UX to see newly sorted results from the beginning
     currentPage = 1;
+    
+    // Update URL to reflect the new pagination state
+    updateURLForPagination();
   }
 
   function handleQuickFilter(event: CustomEvent) {
-    quickFilters = event.detail;
+    const oldFilters = quickFilters;
+    const newFilters = event.detail;
+    
+    console.log('🔍 FILTER: handleQuickFilter called', {
+      oldFilters,
+      newFilters,
+      currentPage,
+      timestamp: new Date().toISOString()
+    });
+    
+    // Check if filters actually changed to prevent unnecessary resets
+    const filtersChanged = JSON.stringify(oldFilters) !== JSON.stringify(newFilters);
+    
+    console.log('🔍 FILTER: Checking if filters changed', {
+      filtersChanged,
+      oldFiltersString: JSON.stringify(oldFilters),
+      newFiltersString: JSON.stringify(newFilters)
+    });
+    
+    if (!filtersChanged) {
+      console.log('⏭️ FILTER: No filter changes detected, skipping reset');
+      return;
+    }
+    
+    quickFilters = newFilters;
+    currentPage = 1; // Reset to page 1 when filters change
+    
+    console.log('🔍 FILTER: Quick filters updated', {
+      quickFilters,
+      currentPage,
+      aboutToCallApplyFilters: true
+    });
+    
     applyAllFilters();
+    updateURLWithFilters();
+    
+    console.log('✅ FILTER: handleQuickFilter complete', { 
+      quickFilters, 
+      currentPage,
+      filteredMachinesLength: filteredMachines.length,
+      finalURL: window.location.href 
+    });
   }
 
   function handleAdvancedFilter(event: CustomEvent) {
-    advancedFilters = event.detail;
+    const oldFilters = advancedFilters;
+    const newFilters = event.detail;
+    
+    console.log('🔍 ADVANCED_FILTER: handleAdvancedFilter called', {
+      oldFilters,
+      newFilters,
+      currentPage,
+      timestamp: new Date().toISOString()
+    });
+    
+    // Check if filters actually changed to prevent unnecessary resets
+    const filtersChanged = JSON.stringify(oldFilters) !== JSON.stringify(newFilters);
+    
+    console.log('🔍 ADVANCED_FILTER: Checking if filters changed', {
+      filtersChanged,
+      oldFiltersString: JSON.stringify(oldFilters),
+      newFiltersString: JSON.stringify(newFilters)
+    });
+    
+    if (!filtersChanged) {
+      console.log('⏭️ ADVANCED_FILTER: No filter changes detected, skipping reset');
+      return;
+    }
+    
+    advancedFilters = newFilters;
+    currentPage = 1; // Reset to page 1 when filters change
+    
+    console.log('🔍 ADVANCED_FILTER: Advanced filters updated', {
+      advancedFilters,
+      currentPage,
+      aboutToCallApplyFilters: true
+    });
+    
     applyAllFilters();
+    updateURLWithFilters();
+    
+    console.log('✅ ADVANCED_FILTER: handleAdvancedFilter complete', { 
+      advancedFilters, 
+      currentPage,
+      filteredMachinesLength: filteredMachines.length,
+      finalURL: window.location.href 
+    });
   }
 
   function clearAllFilters() {
+    const oldQuickFilters = quickFilters;
+    const oldAdvancedFilters = advancedFilters;
+    
+    console.log('🧹 CLEAR_FILTERS: clearAllFilters called', {
+      oldQuickFilters,
+      oldAdvancedFilters,
+      currentPage,
+      timestamp: new Date().toISOString()
+    });
+    
+    // Check if there are actually filters to clear
+    const hasFilters = Object.keys(oldQuickFilters).length > 0 || Object.keys(oldAdvancedFilters).length > 0;
+    
+    console.log('🧹 CLEAR_FILTERS: Checking if filters exist to clear', {
+      hasFilters,
+      quickFiltersKeys: Object.keys(oldQuickFilters),
+      advancedFiltersKeys: Object.keys(oldAdvancedFilters)
+    });
+    
+    if (!hasFilters) {
+      console.log('⏭️ CLEAR_FILTERS: No filters to clear, skipping reset');
+      return;
+    }
+    
     quickFilters = {};
     advancedFilters = {};
+    currentPage = 1; // Reset to page 1 when clearing filters
     clearTrigger += 1; // Trigger clearing in child components
+    
+    console.log('🧹 CLEAR_FILTERS: Filters cleared', {
+      quickFilters,
+      advancedFilters,
+      currentPage,
+      clearTrigger,
+      aboutToCallApplyFilters: true
+    });
+    
     applyAllFilters();
+    updateURLWithFilters();
+    
+    console.log('✅ CLEAR_FILTERS: clearAllFilters complete', { 
+      quickFilters, 
+      advancedFilters,
+      currentPage,
+      filteredMachinesLength: filteredMachines.length,
+      finalURL: window.location.href 
+    });
   }
 
   // Calculate if any filters are active
@@ -402,7 +577,24 @@
   });
 
   function applyAllFilters() {
+    console.log('🔍 APPLY_FILTERS: applyAllFilters called', {
+      currentPage,
+      allMachinesLength: allMachines.length,
+      quickFilters,
+      advancedFilters,
+      timestamp: new Date().toISOString()
+    });
+    
+    // Store the current page to preserve it during initialization
+    const previousPage = currentPage;
+    
     const combinedFilters = { ...quickFilters, ...advancedFilters };
+    
+    console.log('🔍 APPLY_FILTERS: Combined filters', {
+      combinedFilters,
+      previousPage,
+      currentPage
+    });
     
     filteredMachines = allMachines.filter(machine => {
       // Search filter
@@ -468,16 +660,33 @@
         if (!hasBuiltInGrinder) return false;
       }
 
-      // Max heat-up time filter
-      if (combinedFilters.maxHeatUpTime !== undefined) {
-        const heatupTime = machine.heat_up_seconds;
-        if (heatupTime && heatupTime > combinedFilters.maxHeatUpTime) return false;
-      }
+      // Max heat-up time filter - HIDDEN
+      // if (combinedFilters.maxHeatUpTime !== undefined) {
+      //   const heatupTime = machine.heat_up_seconds;
+      //   if (heatupTime && heatupTime > combinedFilters.maxHeatUpTime) return false;
+      // }
 
       // Pre-infusion filter
       if (combinedFilters.preInfusion && combinedFilters.preInfusion.length > 0) {
-        const preInfusion = machine.pre_infusion || 'None';
-        if (!combinedFilters.preInfusion.includes(preInfusion)) return false;
+        // Convert machine pre_infusion value to Yes/No format to match filter options
+        const hasPreInfusion = machine.pre_infusion;
+        let preInfusionDisplay = 'No';
+        
+        // Check if machine has pre-infusion (boolean, truthy string, or specific values)
+        if (typeof hasPreInfusion === 'boolean') {
+          preInfusionDisplay = hasPreInfusion ? 'Yes' : 'No';
+        } else if (typeof hasPreInfusion === 'string') {
+          const lowerValue = hasPreInfusion.toLowerCase();
+          if (lowerValue === 'none' || lowerValue === 'false' || lowerValue === '0') {
+            preInfusionDisplay = 'No';
+          } else if (lowerValue === 'true' || lowerValue === '1' || lowerValue === 'mechanical' || lowerValue === 'programmable' || lowerValue === 'yes') {
+            preInfusionDisplay = 'Yes';
+          }
+        } else if (hasPreInfusion) {
+          preInfusionDisplay = 'Yes';
+        }
+        
+        if (!combinedFilters.preInfusion.includes(preInfusionDisplay)) return false;
       }
 
       // Min water tank filter
@@ -511,8 +720,23 @@
       return true;
     });
 
-    // Reset to first page when filters change
-    currentPage = 1;
+    console.log('🔍 APPLY_FILTERS: Filtering complete', {
+      originalMachinesLength: allMachines.length,
+      filteredMachinesLength: filteredMachines.length,
+      currentPage,
+      totalPagesAfterFilter: Math.ceil(filteredMachines.length / itemsPerPage),
+      itemsPerPage
+    });
+
+    // Don't reset page in applyAllFilters - handle it explicitly in filter event handlers
+    // This prevents pagination from being reset when applyAllFilters is called for other reasons
+    
+    console.log('✅ APPLY_FILTERS: applyAllFilters complete', {
+      currentPage,
+      filteredMachinesLength: filteredMachines.length,
+      willHavePaginatedMachines: filteredMachines.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).length,
+      timestamp: new Date().toISOString()
+    });
   }
 
   function handleSelect(event: CustomEvent) {
@@ -529,18 +753,64 @@
   }
 
   function handlePageChange(event: CustomEvent) {
-    currentPage = event.detail.page;
+    const newPage = event.detail.page;
+    const oldPage = currentPage;
+    
+    console.log('🔄 PAGINATION: handlePageChange called', {
+      oldPage,
+      newPage,
+      totalPages: Math.ceil(filteredMachines.length / itemsPerPage),
+      itemsPerPage,
+      totalItems: filteredMachines.length,
+      timestamp: new Date().toISOString()
+    });
+    
+    // Update state immediately - this triggers reactive updates
+    currentPage = newPage;
+    
+    console.log('📊 PAGINATION: State updated', {
+      currentPage,
+      paginatedMachinesLength: paginatedMachines.length,
+      sortedMachinesLength: sortedMachines.length,
+      filteredMachinesLength: filteredMachines.length
+    });
+    
+    // Update URL with new pagination
+    updateURLForPagination();
+    
     // Scroll to top of table when page changes
     document.querySelector('.machine-table-container')?.scrollIntoView({ 
       behavior: 'smooth', 
       block: 'start' 
     });
+    
+    console.log('✅ PAGINATION: handlePageChange complete', { currentPage, newURL: window.location.href });
   }
 
   function handleItemsPerPageChange(event: Event) {
     const target = event.target as HTMLSelectElement;
-    itemsPerPage = parseInt(target.value);
+    const oldItemsPerPage = itemsPerPage;
+    const newItemsPerPage = parseInt(target.value);
+    
+    console.log('📋 ITEMS_PER_PAGE: handleItemsPerPageChange called', {
+      oldItemsPerPage,
+      newItemsPerPage,
+      currentPage,
+      totalItems: filteredMachines.length
+    });
+    
+    itemsPerPage = newItemsPerPage;
     currentPage = 1; // Reset to first page when changing items per page
+    
+    console.log('📋 ITEMS_PER_PAGE: State updated', {
+      itemsPerPage,
+      currentPage,
+      newTotalPages: Math.ceil(filteredMachines.length / itemsPerPage)
+    });
+    
+    updateURLForPagination();
+    
+    console.log('✅ ITEMS_PER_PAGE: handleItemsPerPageChange complete', { itemsPerPage, currentPage, newURL: window.location.href });
   }
 
   $: selectedIds = selectedMachines.map(m => m.id);
@@ -557,42 +827,240 @@
 
   // Initialize filters from URL on mount
   onMount(() => {
+    console.log('🚀 MOUNT: onMount started', {
+      currentURL: window.location.href,
+      searchParams: window.location.search,
+      timestamp: new Date().toISOString()
+    });
+    
+    // Set initial page and perPage from URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlPage = parseInt(urlParams.get('page') || '1') || 1;
+    const urlPerPage = parseInt(urlParams.get('perPage') || '20') || 20;
+    
+    console.log('🚀 MOUNT: Parsing URL parameters', {
+      urlPage,
+      urlPerPage,
+      urlParams: Object.fromEntries(urlParams.entries())
+    });
+    
+    currentPage = urlPage;
+    itemsPerPage = urlPerPage;
+
+    // Initialize filters from URL
     const urlState = parseFiltersFromURL();
     quickFilters = urlState.quickFilters;
     advancedFilters = urlState.advancedFilters;
-    sortColumn = urlState.sortColumn;
-    sortDirection = urlState.sortDirection;
-    currentPage = urlState.currentPage;
-    itemsPerPage = urlState.itemsPerPage;
-    isInitialized = true;
     
+    console.log('🚀 MOUNT: Initial state set', {
+      currentPage,
+      itemsPerPage,
+      quickFilters,
+      advancedFilters,
+      allMachinesLength: allMachines.length,
+      aboutToCallApplyFilters: true
+    });
+
+    // Apply filters ONCE, do not reset currentPage
+    applyAllFilters();
+    
+    console.log('🚀 MOUNT: Applied filters', {
+      currentPage,
+      filteredMachinesLength: filteredMachines.length,
+      paginatedMachinesLength: paginatedMachines.length
+    });
+
+    // Mark as initialized after a brief delay
+    setTimeout(() => {
+      isInitialized = true;
+      console.log('🚀 MOUNT: Initialized complete', { 
+        isInitialized, 
+        currentPage,
+        finalURL: window.location.href 
+      });
+    }, 50);
+
     // Handle browser back/forward navigation
     const handlePopState = () => {
+      console.log('🔙 POPSTATE: Browser navigation detected', {
+        newURL: window.location.href,
+        searchParams: window.location.search,
+        timestamp: new Date().toISOString()
+      });
+      
+      const urlParams = new URLSearchParams(window.location.search);
+      const newPage = parseInt(urlParams.get('page') || '1') || 1;
+      const newPerPage = parseInt(urlParams.get('perPage') || '20') || 20;
+      
+      console.log('🔙 POPSTATE: Parsing new URL parameters', {
+        oldPage: currentPage,
+        newPage,
+        oldPerPage: itemsPerPage,
+        newPerPage,
+        urlParams: Object.fromEntries(urlParams.entries())
+      });
+      
+      currentPage = newPage;
+      itemsPerPage = newPerPage;
+      
+      // Update filters from URL
       const urlState = parseFiltersFromURL();
+      const oldQuickFilters = quickFilters;
+      const oldAdvancedFilters = advancedFilters;
+      
       quickFilters = urlState.quickFilters;
       advancedFilters = urlState.advancedFilters;
-      sortColumn = urlState.sortColumn;
-      sortDirection = urlState.sortDirection;
-      currentPage = urlState.currentPage;
-      itemsPerPage = urlState.itemsPerPage;
+      
+      console.log('🔙 POPSTATE: Updated state from URL', {
+        currentPage,
+        itemsPerPage,
+        oldQuickFilters,
+        newQuickFilters: quickFilters,
+        oldAdvancedFilters,
+        newAdvancedFilters: advancedFilters,
+        aboutToCallApplyFilters: true
+      });
+      
+      // Apply filters ONCE, do not reset currentPage
+      applyAllFilters();
+      
+      console.log('✅ POPSTATE: Browser navigation complete', {
+        currentPage,
+        filteredMachinesLength: filteredMachines.length,
+        paginatedMachinesLength: paginatedMachines.length,
+        finalURL: window.location.href
+      });
     };
     
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
   });
 
-  // Update URL when filters, sorting, or pagination changes
-  $: if (isInitialized) {
+  // Function to update URL with current filter and pagination state (when filters change)
+  function updateURLWithFilters() {
+    if (!isInitialized || typeof window === 'undefined') return;
+    
+    console.log('🔗 URL_UPDATE: updateURLWithFilters called', {
+      currentPage,
+      itemsPerPage,
+      quickFilters,
+      advancedFilters,
+      isInitialized,
+      timestamp: new Date().toISOString()
+    });
+    
     const combinedFilters = { ...quickFilters, ...advancedFilters };
-    updateURL(
-      combinedFilters,
-      { column: sortColumn, direction: sortDirection },
-      { page: currentPage, perPage: itemsPerPage }
-    );
+    const params = new URLSearchParams();
+    
+    // Add filter parameters
+    if (combinedFilters.searchTerm) params.set('search', combinedFilters.searchTerm);
+    if (combinedFilters.brands?.length > 0) params.set('brands', combinedFilters.brands.join(','));
+    if (combinedFilters.machineTypes?.length > 0) params.set('types', combinedFilters.machineTypes.join(','));
+    if (combinedFilters.boilerTypes?.length > 0) params.set('boilers', combinedFilters.boilerTypes.join(','));
+    if (combinedFilters.boilerConfigurations?.length > 0) params.set('boilerConfigs', combinedFilters.boilerConfigurations.join(','));
+    if (combinedFilters.heatingSystems?.length > 0) params.set('heatingSystems', combinedFilters.heatingSystems.join(','));
+    if (combinedFilters.preInfusion?.length > 0) params.set('preInfusion', combinedFilters.preInfusion.join(','));
+    if (combinedFilters.waterFilter?.length > 0) params.set('waterFilter', combinedFilters.waterFilter.join(','));
+    if (combinedFilters.buildMaterials?.length > 0) params.set('buildMaterials', combinedFilters.buildMaterials.join(','));
+    if (combinedFilters.warrantyYears?.length > 0) params.set('warrantyYears', combinedFilters.warrantyYears.join(','));
+    if (combinedFilters.hasDualBoiler) params.set('dualBoiler', 'true');
+    if (combinedFilters.pidControlOnly) params.set('pid', 'true');
+    if (combinedFilters.builtInGrinderOnly) params.set('grinder', 'true');
+    // Heat-up filter HIDDEN
+    // if (combinedFilters.maxHeatUpTime !== undefined) params.set('maxHeatUp', combinedFilters.maxHeatUpTime.toString());
+    if (combinedFilters.minWaterTank !== undefined) params.set('minTank', combinedFilters.minWaterTank.toString());
+    
+    // Add pagination parameters (only if not defaults)
+    if (currentPage > 1) params.set('page', currentPage.toString());
+    if (itemsPerPage !== 20) params.set('perPage', itemsPerPage.toString());
+    
+    const oldURL = window.location.href;
+    const newURL = params.toString() ? `${window.location.pathname}?${params.toString()}` : window.location.pathname;
+    
+    console.log('🔗 URL_UPDATE: Updating URL with filters', {
+      oldURL,
+      newURL,
+      params: params.toString(),
+      paramsObject: Object.fromEntries(params.entries())
+    });
+    
+    window.history.replaceState({}, '', newURL);
+    
+    console.log('✅ URL_UPDATE: updateURLWithFilters complete', { finalURL: window.location.href });
   }
+
+  // Function to update URL with pagination changes only (preserves existing filters)
+  function updateURLForPagination() {
+    if (!isInitialized || typeof window === 'undefined') return;
+    
+    console.log('🔗 URL_PAGINATION: updateURLForPagination called', {
+      currentPage,
+      itemsPerPage,
+      isInitialized,
+      timestamp: new Date().toISOString()
+    });
+    
+    const params = new URLSearchParams(window.location.search);
+    
+    // Update/remove pagination parameters
+    if (currentPage > 1) {
+      params.set('page', currentPage.toString());
+    } else {
+      params.delete('page');
+    }
+    
+    if (itemsPerPage !== 20) {
+      params.set('perPage', itemsPerPage.toString());
+    } else {
+      params.delete('perPage');
+    }
+    
+    const oldURL = window.location.href;
+    const newURL = params.toString() ? `${window.location.pathname}?${params.toString()}` : window.location.pathname;
+    
+    console.log('🔗 URL_PAGINATION: Updating URL with pagination', {
+      oldURL,
+      newURL,
+      params: params.toString(),
+      paramsObject: Object.fromEntries(params.entries())
+    });
+    
+    window.history.replaceState({}, '', newURL);
+    
+    console.log('✅ URL_PAGINATION: updateURLForPagination complete', { finalURL: window.location.href });
+  }
+
+  // Apply filters when filter state changes (but don't reset pagination when called from URL updates)
+  // Only reset currentPage = 1 in handleQuickFilter, handleAdvancedFilter, clearAllFilters, and handleItemsPerPageChange
 </script>
 
 <div>
+  <!-- Only show loading indicator on very first load when no data at all -->
+  {#if storeLoading && !isBackgroundRefresh && allMachines.length === 0}
+    <div class="mb-4 bg-blue-50 border border-blue-200 rounded-lg p-3">
+      <div class="flex items-center gap-2">
+        <svg class="animate-spin h-4 w-4 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        <span class="text-sm text-blue-800">Loading machine data...</span>
+      </div>
+    </div>
+  {/if}
+
+
+
+  <!-- Background Refresh Indicator -->
+  {#if isBackgroundRefresh}
+    <div class="fixed top-4 right-4 z-50 bg-blue-500 text-white px-3 py-1 rounded-full text-xs flex items-center gap-1 shadow-lg">
+      <svg class="animate-spin h-3 w-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+      </svg>
+      <span>Updating...</span>
+    </div>
+  {/if}
+
   <!-- Filters Row -->
   <div class="mb-6 flex justify-between items-center gap-4">
     <!-- Quick Filters - Inline -->
@@ -605,8 +1073,27 @@
   <AdvancedFilters machines={allMachines} bind:isOpen={showAdvancedFilters} on:advancedFilter={handleAdvancedFilter} />
   
   <div class="machine-table-container" data-machinelist-outer>
-    <!-- Results count and pagination info -->
-    <div class="flex flex-col-reverse sm:flex-row flex-wrap justify-between items-start sm:items-center px-2 md:px-0 gap-4 sm:gap-2 mb-6 sm:mb-4">
+    <!-- Show empty state only if truly no data -->
+    {#if allMachines.length === 0 && !storeLoading}
+      <div class="bg-white border border-border rounded-xl shadow-sm p-8 text-center">
+        <div class="space-y-4">
+          <div class="text-gray-600 font-medium">
+            No machines available
+          </div>
+          <p class="text-gray-500">
+            Machine data will appear here once it's available. You can try refreshing the page.
+          </p>
+          <button 
+            on:click={() => window.location.reload()} 
+            class="mt-4 px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-dark transition-colors"
+          >
+            Refresh Page
+          </button>
+        </div>
+      </div>
+    {:else}
+      <!-- Results count and pagination info -->
+      <div class="flex flex-col-reverse sm:flex-row flex-wrap justify-between items-start sm:items-center px-2 md:px-0 gap-4 sm:gap-2 mb-6 sm:mb-4">
       <div class="flex items-center gap-3 text-sm text-gray-700">
         {#if sortedMachines.length > 0}
           <span>
@@ -622,7 +1109,7 @@
 
           {#if allMachines.length > itemsPerPageOptions[0]}
             <span class="border-l border-gray-300 h-4 mx-1"></span>
-            <div class="flex items-center gap-1.5">
+            <div class="flex items-center gap-1.5 flex-wrap">
               <label for="items-per-page" class="text-sm text-gray-600">Show:</label>
               <select 
                 id="items-per-page"
@@ -648,10 +1135,10 @@
       </div>
       
       <!-- Filter Action Buttons -->
-      <div class="flex items-center gap-2">
+      <div class="flex items-center gap-2 w-full sm:w-auto">
         {#if hasActiveFilters}
           <button
-            class="px-3 py-2 text-sm font-semibold text-gray-600 hover:text-gray-800 border border-gray-300 rounded-md  hover:bg-gray-50 transition-all duration-200 shadow-sm"
+            class="px-3 py-2 text-sm font-semibold border-2 border-primary text-black hover:text-gray-800  rounded-md  hover:bg-gray-50 transition-all duration-200 shadow-sm sm:flex-shrink-0 flex-shrink-0"
             on:click={clearAllFilters}
           >
             Clear All
@@ -660,7 +1147,7 @@
         
         <!-- Advanced Filters Button -->
         <button
-          class="inline-flex items-center gap-2 px-4 py-2.5 bg-primary text-white text-sm font-semibold rounded-lg hover:bg-primary-dark transition-all duration-200 shadow-sm hover:shadow-md active:scale-[0.98] flex-shrink-0"
+          class="inline-flex justify-center w-full items-center gap-2 px-4 py-2.5 bg-primary text-white text-sm font-semibold rounded-lg hover:bg-primary-dark transition-all duration-200 shadow-sm hover:shadow-md active:scale-[0.98] flex-shrink-1 sm:flex-shrink-1"
           on:click={() => showAdvancedFilters = true}
         >
         <svg class="h-5 w-5" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -677,21 +1164,22 @@
       </div>
     </div>
     
-    <MachineTable 
-      machines={paginatedMachines} 
-      selectedIds={selectedIds} 
-      {sortColumn}
-      {sortDirection}
-      on:select={handleSelect}
-      on:sort={(event) => handleSort(event.detail.column)}
-    />
-    
-    <Pagination 
-      {currentPage}
-      totalItems={sortedMachines.length}
-      {itemsPerPage}
-      on:pageChange={handlePageChange}
-    />
+      <MachineTable 
+        machines={paginatedMachines} 
+        selectedIds={selectedIds} 
+        {sortColumn}
+        {sortDirection}
+        on:select={handleSelect}
+        on:sort={(event) => handleSort(event.detail.column)}
+      />
+      
+      <Pagination 
+        {currentPage}
+        totalItems={sortedMachines.length}
+        {itemsPerPage}
+        on:pageChange={handlePageChange}
+      />
+    {/if}
   </div>
   
   <CompareTray 

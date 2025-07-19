@@ -21,8 +21,8 @@ export function formatWarranty(warranty: string | number | null): string {
   
   // If it's a number (warranty_years), format it
   if (typeof warranty === 'number') {
-    if (warranty === 1) return '1-year limited';
-    return `${warranty}-year limited`;
+    if (warranty === 1) return '1 year';
+    return `${warranty} years`;
   }
   
   // If it's a string, return as-is (the original warranty text)
