@@ -7,7 +7,7 @@
 
 # Supabase Configuration (Public - Safe to expose)
 PUBLIC_SUPABASE_URL=https://your-project-id.supabase.co
-PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.your-anon-key-here
+PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key-here
 
 # =================================================================
 # OPTIONAL: Build Configuration
@@ -56,4 +56,4 @@ BUILD_OUTPUT_DIRECTORY=dist
 
 # Example of what your actual values might look like:
 # PUBLIC_SUPABASE_URL=https://abcdefghijklmnop.supabase.co
-# PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFiY2RlZmdoaWprbG1ub3AiLCJyb2xlIjoiYW5vbiIsImlhdCI6MTY0MjQxMjM0MCwiZXhwIjoxOTU3OTg4MzQwfQ.example-signature-here 
+# PUBLIC_SUPABASE_ANON_KEY=your-actual-supabase-anon-key-here 
