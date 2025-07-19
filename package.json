@@ -11,6 +11,7 @@
     "db:seed": "tsx db/seed.ts"
   },
   "dependencies": {
+    "@astrojs/cloudflare": "^12.6.0",
     "@astrojs/node": "^9.2.2",
     "@astrojs/svelte": "^7.1.0",
     "@supabase/supabase-js": "^2.50.0",
