@@ -1,17 +1,30 @@
 ---
 // Server-side rendering with client-side store for persistence
 
-import Layout from '../layouts/Layout.astro';
-import CompareView from '../components/CompareView.svelte';
+import Layout from '../../layouts/Layout.astro';
+import CompareView from '../../components/CompareView.svelte';
 import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from 'astro:env/client';
 
-const idsParam = Astro.url.searchParams.get('ids');
-const ids = idsParam ? idsParam.split(',').filter(Boolean) : [];
-
-let machines = [];
+// Parse the slug to extract machine IDs
+const slug = Astro.params.slug;
+let ids: string[] = [];
 let error = null;
 
-if (ids.length === 2) {
+if (slug) {
+  // Expected format: "machine1-vs-machine2"
+  const parts = slug.split('-vs-');
+  if (parts.length === 2 && parts[0] && parts[1]) {
+    ids = [parts[0], parts[1]];
+  } else {
+    error = "Invalid comparison URL format. Expected: /compare/machine1-vs-machine2";
+  }
+} else {
+  error = "Please select exactly two machines to compare.";
+}
+
+let machines = [];
+
+if (ids.length === 2 && !error) {
   try {
     const supabaseUrl = PUBLIC_SUPABASE_URL;
     const supabaseKey = PUBLIC_SUPABASE_ANON_KEY;
@@ -62,7 +75,7 @@ if (ids.length === 2) {
     console.error('SSR: Error fetching comparison data:', err);
     error = `Failed to load comparison data. Please try again later.`;
   }
-} else {
+} else if (!error) {
   error = "Please select exactly two machines to compare.";
 }
 

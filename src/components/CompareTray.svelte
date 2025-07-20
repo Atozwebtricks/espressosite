@@ -5,8 +5,8 @@
 
   function handleCompare() {
     if (selectedMachines.length !== 2) return;
-    const ids = selectedMachines.map(m => m.id).join(',');
-    window.location.href = `/compare?ids=${ids}`;
+    const ids = selectedMachines.map(m => m.id);
+    window.location.href = `/compare/${ids[0]}-vs-${ids[1]}`;
   }
 
   function handleRemove(machineId: string) {
