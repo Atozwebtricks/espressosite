@@ -11,7 +11,10 @@ export default defineConfig({
   site: 'https://espressopicker.com',
   output: 'server',
   adapter: cloudflare({
-    imageService: 'passthrough'
+    imageService: 'passthrough',
+    platformProxy: {
+      enabled: true
+    }
   }),
   
   env: {
