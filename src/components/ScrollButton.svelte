@@ -16,7 +16,7 @@
 
 {#if visible}
   <button
-    class="fixed top-1/2 transform -translate-y-1/2 z-50 flex items-center justify-center w-12 h-12 bg-white text-black border border-gray-300 rounded-full shadow-md hover:scale-100 hover:shadow-lg hover:bg-gray-50 transition-all duration-200 {disabled ? 'opacity-50 cursor-not-allowed' : 'hover:border-gray-400'} {direction === 'left' ? 'left-3' : 'right-3'}"
+    class="fixed top-1/2 transform -translate-y-1/2 z-50 flex items-center justify-center w-9 h-9 sm:w-12 sm:h-12 bg-white text-black border border-gray-300 rounded-full shadow-md hover:scale-100 hover:shadow-lg hover:bg-gray-50 transition-all duration-200 {disabled ? 'opacity-50 cursor-not-allowed' : 'hover:border-gray-400'} {direction === 'left' ? 'left-1 sm:left-3' : 'right-1 sm:right-3'}"
     on:click={handleClick}
     {disabled}
     aria-label={direction === 'left' ? 'Scroll left' : 'Scroll right'}

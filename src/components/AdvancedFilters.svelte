@@ -10,7 +10,6 @@
   // Advanced filter state
   let selectedBoilerConfigurations: string[] = [];
   let selectedHeatingSystems: string[] = [];
-  let heatUpTimeRange: [number, number] = [0, 600];
   let selectedPreInfusion: string[] = [];
   let waterTankRange: [number, number] = [0, 10];
   let selectedWaterFilter: string[] = [];
@@ -20,8 +19,7 @@
   // Calculate unique values and ranges from machines
   $: boilerConfigurations = [
     'Single boiler',
-    'Dual boiler', 
-    'Heat-exchange'
+    'Dual boiler'
   ];
 
   $: heatingSystems = [
@@ -38,12 +36,6 @@
   let rangesInitialized = false;
   $: {
     if (machines.length > 0 && !rangesInitialized) {
-      const heatupTimes = machines.map(m => m.heat_up_seconds).filter(h => h && h > 0);
-      if (heatupTimes.length > 0) {
-        const maxHeatup = Math.max(...heatupTimes);
-        heatUpTimeRange = [0, maxHeatup];
-      }
-
       const tanks = machines.map(m => m.water_tank_l || (m.reservoir_ml ? m.reservoir_ml / 1000 : 0)).filter(t => t > 0);
       if (tanks.length > 0) {
         const maxTank = Math.max(...tanks);
@@ -58,7 +50,6 @@
   $: {
     selectedBoilerConfigurations;
     selectedHeatingSystems;
-    heatUpTimeRange;
     selectedPreInfusion;
     waterTankRange;
     selectedWaterFilter;
@@ -74,7 +65,6 @@
     const filters = {
       boilerConfigurations: selectedBoilerConfigurations.length > 0 ? selectedBoilerConfigurations : undefined,
       heatingSystems: selectedHeatingSystems.length > 0 ? selectedHeatingSystems : undefined,
-      maxHeatUpTime: heatUpTimeRange[1] < 600 ? heatUpTimeRange[1] : undefined,
       preInfusion: selectedPreInfusion.length > 0 ? selectedPreInfusion : undefined,
       minWaterTank: waterTankRange[0] > 0 ? waterTankRange[0] : undefined,
       waterFilter: selectedWaterFilter.length > 0 ? selectedWaterFilter : undefined,
@@ -135,7 +125,6 @@
   function clearAdvancedFilters() {
     selectedBoilerConfigurations = [];
     selectedHeatingSystems = [];
-    heatUpTimeRange = [0, 600];
     selectedPreInfusion = [];
     waterTankRange = [0, 10];
     selectedWaterFilter = [];
@@ -143,14 +132,7 @@
     selectedWarrantyYears = [];
   }
 
-  function formatHeatUpTime(seconds: number): string {
-    if (seconds === 0) return 'Show All';
-    if (seconds < 60) return `${seconds}s`;
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
-    if (remainingSeconds === 0) return `${minutes}m`;
-    return `${minutes}m ${remainingSeconds}s`;
-  }
+
 
   function formatTankSize(liters: number): string {
     if (liters === 0) return 'Show All';
@@ -194,7 +176,7 @@
     <div class="flex items-center gap-3">
       <h2 class="text-lg font-semibold text-gray-900">Advanced Filters</h2>
       
-      {#if selectedBoilerConfigurations.length > 0 || selectedHeatingSystems.length > 0 || selectedPreInfusion.length > 0 || selectedBuildMaterials.length > 0 || selectedWarrantyYears.length > 0 || selectedWaterFilter.length > 0 || heatUpTimeRange[1] < 600 || waterTankRange[0] > 0}
+      {#if selectedBoilerConfigurations.length > 0 || selectedHeatingSystems.length > 0 || selectedPreInfusion.length > 0 || selectedBuildMaterials.length > 0 || selectedWarrantyYears.length > 0 || selectedWaterFilter.length > 0 || waterTankRange[0] > 0}
         <span class="bg-gray-200 text-primary text-xs rounded-full px-2 py-0.5">
           Active
         </span>
@@ -215,7 +197,7 @@
   <div class="p-6 overflow-y-auto h-full pb-32">
     <div class="space-y-8">
           <!-- Clear Advanced Filters -->
-          {#if selectedBoilerConfigurations.length > 0 || selectedHeatingSystems.length > 0 || selectedPreInfusion.length > 0 || selectedBuildMaterials.length > 0 || selectedWarrantyYears.length > 0 || selectedWaterFilter.length > 0 || heatUpTimeRange[1] < 600 || waterTankRange[0] > 0}
+          {#if selectedBoilerConfigurations.length > 0 || selectedHeatingSystems.length > 0 || selectedPreInfusion.length > 0 || selectedBuildMaterials.length > 0 || selectedWarrantyYears.length > 0 || selectedWaterFilter.length > 0 || waterTankRange[0] > 0}
           <div class="">
             <button
               class="text-sm font-medium text-gray-600 hover:text-gray-800 underline"
@@ -256,43 +238,7 @@
           </div>
         </div>
 
-        <!-- Heat-Up Time Range -->
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-3">
-            Max Heat-Up Time: <span class="inline-flex items-center px-2 py-1 rounded-full text-sm font-medium bg-gray-200 text-primary">
-              {formatHeatUpTime(heatUpTimeRange[1])}
-            </span>
-          </label>
-          <div class="relative">
-            <!-- Single Range Slider -->
-            <div class="relative h-8 flex items-center">
-              <!-- Track -->
-              <div class="absolute w-full h-2 bg-gray-200 rounded-full"></div>
-              
-              <!-- Active Range -->
-              <div 
-                class="absolute h-2 bg-cta rounded-full"
-                style="width: {(heatUpTimeRange[1] / 600) * 100}%"
-              ></div>
-              
-              <!-- Slider -->
-              <input
-                type="range"
-                min="0"
-                max="600"
-                step="30"
-                bind:value={heatUpTimeRange[1]}
-                class="absolute w-full h-2 bg-transparent appearance-none cursor-pointer slider-thumb"
-              />
-            </div>
-            
-            <!-- Min/Max Labels -->
-            <div class="flex justify-between text-xs text-gray-500 mt-2">
-              <span>0s</span>
-              <span>10 min</span>
-            </div>
-          </div>
-        </div>
+
 
         <!-- Pre-Infusion -->
         <div>

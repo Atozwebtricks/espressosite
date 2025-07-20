@@ -55,13 +55,13 @@
       <button
         on:click={previousPage}
         disabled={currentPage === 1}
-        class="flex items-center cursor-pointer justify-center px-4 py-2 mx-1 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white transition-colors min-w-[90px]"
+        class="flex h-10 w-10 sm:w-auto sm:h-auto items-center cursor-pointer justify-center sm:px-4 sm:py-2 mx-1 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white transition-colors sm:min-w-[90px]"
         aria-label="Previous page"
       >
-        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg class="w-4 h-4 sm:mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
         </svg>
-        Previous
+        <span class="hidden sm:block">Previous</span>
       </button>
 
       <!-- Page numbers -->
@@ -111,11 +111,11 @@
       <button
         on:click={nextPage}
         disabled={currentPage === totalPages}
-        class="flex cursor-pointer items-center justify-center px-4 py-2 mx-1 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white transition-colors min-w-[90px]"
+        class="flex cursor-pointer items-center h-10 w-10 sm:w-auto sm:h-auto justify-center sm:px-4 sm:py-2 mx-1 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white transition-colors sm:min-w-[90px]"
         aria-label="Next page"
       >
-        Next
-        <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <span class="hidden sm:block">Next</span>
+        <svg class="w-4 h-4 sm:ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
         </svg>
       </button>

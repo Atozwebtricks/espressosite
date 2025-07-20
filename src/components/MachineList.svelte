@@ -1088,7 +1088,7 @@
   <!-- Advanced Filters Side Drawer -->
   <AdvancedFilters machines={allMachines} bind:isOpen={showAdvancedFilters} on:advancedFilter={handleAdvancedFilter} />
   
-  <div class="machine-table-container" data-machinelist-outer>
+  <div class="machine-table-container">
     <!-- Show empty state only if truly no data -->
     {#if allMachines.length === 0 && !storeLoading}
       <div class="bg-white border border-border rounded-xl shadow-sm p-8 text-center">
@@ -1110,7 +1110,7 @@
     {:else}
       <!-- Results count and pagination info -->
       <div class="flex flex-col-reverse sm:flex-row flex-wrap justify-between items-start sm:items-center px-2 md:px-0 gap-4 sm:gap-2 mb-6 sm:mb-4">
-      <div class="flex items-center gap-3 text-sm text-gray-700">
+      <div class="flex items-center gap-2 sm:gap-3 text-xs sm:text-sm text-gray-700">
         {#if sortedMachines.length > 0}
           <span>
             {#if totalPages > 1}
@@ -1126,7 +1126,7 @@
           {#if allMachines.length > itemsPerPageOptions[0]}
             <span class="border-l border-gray-300 h-4 mx-1"></span>
             <div class="flex items-center gap-1.5 flex-wrap">
-              <label for="items-per-page" class="text-sm text-gray-600">Show:</label>
+              <label for="items-per-page" class="text-xs sm:text-sm text-gray-600">Show:</label>
               <select 
                 id="items-per-page"
                 class="text-xs border border-gray-300 rounded px-1.5 py-0.5 bg-white text-gray-700 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
@@ -1142,7 +1142,7 @@
                   <option value={allMachines.length}>All ({allMachines.length})</option>
                 {/if}
               </select>
-              <span class="text-sm text-gray-600">per page</span>
+              <span class="text-xs sm:text-sm text-gray-600">per page</span>
             </div>
           {/if}
         {:else}
@@ -1180,6 +1180,7 @@
       </div>
     </div>
     
+    <div data-machinelist-outer>
       <MachineTable 
         machines={paginatedMachines} 
         selectedIds={selectedIds} 
@@ -1188,6 +1189,7 @@
         on:select={handleSelect}
         on:sort={(event) => handleSort(event.detail.column)}
       />
+  </div>
       
       <Pagination 
         {currentPage}

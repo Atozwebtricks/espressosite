@@ -24,8 +24,8 @@
 
   // Calculate unique values from machines
   $: brands = [...new Set(machines.map(m => m.brand))].filter(Boolean).sort();
-  $: machineTypes = ['Semi-automatic', 'Automatic', 'Super-automatic', 'Manual'];
-  $: boilerTypes = ['Single', 'Dual', 'HX'];
+  $: machineTypes = ['Semi-automatic', 'Super-automatic'];
+  $: boilerTypes = ['Single', 'Dual'];
 
   // Calculate if any filters are active
   $: hasActiveFilters = searchTerm || selectedBrands.length > 0 || selectedMachineTypes.length > 0 || selectedBoilerTypes.length > 0 || hasDualBoiler || pidControlOnly || builtInGrinderOnly;

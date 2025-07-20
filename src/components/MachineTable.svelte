@@ -710,12 +710,12 @@
             </button>
           </td>
           <td class="table-cell-lg whitespace-nowrap sticky-name-cell">
-            <a href={`/machines/${machine.id}`} class="text-sm font-semibold text-primary hover:text-primary/80 hover:underline transition-all duration-150 block truncate max-w-xs">
+            <a href={`/machines/${machine.id}`} class="text-xs sm:text-sm font-semibold text-primary hover:text-cta-dark hover:underline transition-all duration-150 block truncate max-w-xs">
               {machine.model_name || machine.name}
             </a>
           </td>
           <td class="table-cell-lg whitespace-nowrap">
-            <div class="text-sm font-serif tracking-wide font-medium text-gray-700">{machine.brand}</div>
+            <div class="text-sm font-serif tracking-wide font-medium text-primary">{machine.brand}</div>
           </td>
           <td class="table-cell-lg whitespace-nowrap">
             <span class="px-3 py-1 inline-flex text-xs leading-5 font-bold rounded-full border {getMachineTypeClass(machine.machine_type)}">
@@ -883,6 +883,16 @@
     padding-top: 0.5rem;  /* py-2 */
     padding-bottom: 0.5rem; /* py-2 */
     text-align: center;
+  }
+
+  @media(max-width:480px){
+    .table-cell-lg {
+    padding-left: 0px;  /* px-6 */
+    padding-right: 0px; /* px-6 */
+    padding-top: 0.5rem;  /* py-2 */
+    padding-bottom: 0.5rem; /* py-2 */
+    text-align: center;
+  }
   }
   
   .table-cell-md {
