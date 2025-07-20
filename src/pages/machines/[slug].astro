@@ -6,13 +6,11 @@ import MachineSpecs from '../../components/MachineSpecs.svelte';
 
 // Server-side rendering with client-side store for persistence
 
-// Create Supabase client for server-side rendering
-const supabase = createClient(
-  import.meta.env.SUPABASE_URL || import.meta.env.PUBLIC_SUPABASE_URL,
-  import.meta.env.SUPABASE_SERVICE_ROLE_KEY || import.meta.env.PUBLIC_SUPABASE_ANON_KEY
-);
-
 const { slug } = Astro.params;
+
+if (!slug) {
+  return new Response(null, { status: 404 });
+}
 
 let machine = null;
 let machineWithImage = null;
@@ -21,17 +19,31 @@ let pageDescription = "Espresso machine specifications and details";
 let structuredData = {};
 
 try {
-  console.log('SSR: Fetching machine details for:', slug);
-  const { data: fetchedMachine, error } = await supabase
-    .from('espresso_machines')
-    .select('*')
-    .eq('id', slug)
-    .single();
+  const supabaseUrl = import.meta.env.PUBLIC_SUPABASE_URL;
+  const supabaseKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY;
+  
+  if (!supabaseUrl || !supabaseKey) {
+    console.warn('SSR: Missing Supabase credentials, falling back to 404');
+    return new Response(null, { status: 404 });
+  }
 
-  if (error && error.code !== 'PGRST116') { // PGRST116 is "No rows found"
-    console.error('SSR: Error fetching machine details:', error);
+  console.log('SSR: Fetching machine details for:', slug);
+  
+  const response = await fetch(`${supabaseUrl}/rest/v1/espresso_machines?select=*&id=eq.${encodeURIComponent(slug)}`, {
+    headers: {
+      'apikey': supabaseKey,
+      'Authorization': `Bearer ${supabaseKey}`,
+      'Content-Type': 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    console.error('SSR: Supabase API error:', response.status, response.statusText);
     return new Response(null, { status: 500 });
   }
+
+  const machines = await response.json();
+  const fetchedMachine = machines && machines.length > 0 ? machines[0] : null;
 
   if (!fetchedMachine) {
     return new Response(null, { status: 404 });

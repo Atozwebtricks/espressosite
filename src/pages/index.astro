@@ -7,36 +7,44 @@ import FAQ from '../components/FAQ.svelte';
 
 // Server-side rendering with client-side store for persistence
 
-// Create Supabase client for server-side rendering
-const supabase = createClient(
-  import.meta.env.SUPABASE_URL || import.meta.env.PUBLIC_SUPABASE_URL,
-  import.meta.env.SUPABASE_SERVICE_ROLE_KEY || import.meta.env.PUBLIC_SUPABASE_ANON_KEY
-);
-
-// Server-side data fetching for SEO
+// Server-side data fetching for SEO using direct fetch (Cloudflare Workers compatible)
 async function fetchMachinesForSSR() {
   try {
-    console.log('SSR: Fetching machines from Supabase...');
-    const { data: machines, error } = await supabase
-      .from('espresso_machines')
-      .select('*')
-      .order('brand', { ascending: true });
-
-    if (error) {
-      console.error('SSR: Supabase error:', error);
-      return { data: [], error: error.message };
+    const supabaseUrl = import.meta.env.PUBLIC_SUPABASE_URL;
+    const supabaseKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY;
+    
+    if (!supabaseUrl || !supabaseKey) {
+      console.warn('SSR: Missing Supabase credentials, falling back to empty data');
+      return { data: [], error: null };
     }
+
+    console.log('SSR: Fetching machines from Supabase...');
+    
+    const response = await fetch(`${supabaseUrl}/rest/v1/espresso_machines?select=*&order=brand.asc`, {
+      headers: {
+        'apikey': supabaseKey,
+        'Authorization': `Bearer ${supabaseKey}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      console.error('SSR: Supabase API error:', response.status, response.statusText);
+      return { data: [], error: `API error: ${response.status}` };
+    }
+
+    const machines = await response.json();
 
     if (!machines || machines.length === 0) {
       console.warn('SSR: No machines found in database');
-      return { data: [], error: 'No machines found in database' };
+      return { data: [], error: null }; // Don't treat empty data as an error
     }
 
     console.log(`SSR: Successfully fetched ${machines.length} machines`);
     return { data: machines, error: null };
   } catch (err) {
     console.error('SSR: Error fetching machines:', err);
-    return { data: [], error: err instanceof Error ? err.message : 'Unknown error' };
+    return { data: [], error: null }; // Fail gracefully for SSR
   }
 }
 

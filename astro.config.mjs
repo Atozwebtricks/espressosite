@@ -10,7 +10,11 @@ import tailwindcss from '@tailwindcss/vite';
 export default defineConfig({
   site: 'https://espressopicker.com',
   output: 'server',
-  adapter: cloudflare(),
+  adapter: cloudflare({
+    platformProxy: {
+      enabled: true,
+    },
+  }),
   integrations: [svelte()],
 
   vite: {

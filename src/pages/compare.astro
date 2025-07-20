@@ -6,12 +6,6 @@ import { createClient } from '@supabase/supabase-js';
 import { fetchMachineImages } from '../lib/supabase';
 import CompareView from '../components/CompareView.svelte';
 
-// Create Supabase client for server-side rendering
-const supabase = createClient(
-  import.meta.env.SUPABASE_URL || import.meta.env.PUBLIC_SUPABASE_URL,
-  import.meta.env.SUPABASE_SERVICE_ROLE_KEY || import.meta.env.PUBLIC_SUPABASE_ANON_KEY
-);
-
 const idsParam = Astro.url.searchParams.get('ids');
 const ids = idsParam ? idsParam.split(',').filter(Boolean) : [];
 
@@ -20,36 +14,54 @@ let error = null;
 
 if (ids.length === 2) {
   try {
-    console.log('SSR: Fetching machines for comparison:', ids);
-    const { data, error: dbError } = await supabase
-      .from('espresso_machines')
-      .select('*')
-      .in('id', ids);
+    const supabaseUrl = import.meta.env.PUBLIC_SUPABASE_URL;
+    const supabaseKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY;
     
-    if (dbError) {
-      console.error('SSR: Database error:', dbError);
-      error = `Database Error: ${dbError.message}`;
-    } else if (!data || data.length !== 2) {
-      console.warn('SSR: Could not find both machines for comparison');
-      error = `Error: Could not find two machines with the specified IDs. One of the IDs in the URL (${ids.join(', ')}) may be incorrect. Please try selecting them again.`;
+    if (!supabaseUrl || !supabaseKey) {
+      console.warn('SSR: Missing Supabase credentials, falling back to error');
+      error = "Configuration error. Please try again later.";
     } else {
-      // Don't fetch images on server-side for faster loading
-      // Images will be loaded client-side
-      machines = ids.map(id => {
-        const machine = data.find(m => m.id === id);
-        return {
-          ...machine,
-          signedImageUrl: null, // Will be loaded client-side
-          image_caption: machine.image_caption,
-          image_source: machine.image_source,
-        };
+      console.log('SSR: Fetching machines for comparison:', ids);
+      
+      // Create query for multiple IDs
+      const idQuery = ids.map(id => `id.eq.${encodeURIComponent(id)}`).join(',');
+      const response = await fetch(`${supabaseUrl}/rest/v1/espresso_machines?select=*&or=(${idQuery})`, {
+        headers: {
+          'apikey': supabaseKey,
+          'Authorization': `Bearer ${supabaseKey}`,
+          'Content-Type': 'application/json',
+        },
       });
       
-      console.log('SSR: Successfully prepared comparison data');
+      if (!response.ok) {
+        console.error('SSR: Supabase API error:', response.status, response.statusText);
+        error = `API Error: ${response.status}. Please try again later.`;
+      } else {
+        const data = await response.json();
+        
+        if (!data || data.length !== 2) {
+          console.warn('SSR: Could not find both machines for comparison');
+          error = `Error: Could not find two machines with the specified IDs. One of the IDs in the URL (${ids.join(', ')}) may be incorrect. Please try selecting them again.`;
+        } else {
+          // Don't fetch images on server-side for faster loading
+          // Images will be loaded client-side
+          machines = ids.map(id => {
+            const machine = data.find((m: any) => m.id === id);
+            return {
+              ...machine,
+              signedImageUrl: null, // Will be loaded client-side
+              image_caption: machine?.image_caption,
+              image_source: machine?.image_source,
+            };
+          });
+          
+          console.log('SSR: Successfully prepared comparison data');
+        }
+      }
     }
   } catch (err) {
     console.error('SSR: Error fetching comparison data:', err);
-    error = `Failed to load comparison data: ${err instanceof Error ? err.message : 'Unknown error'}`;
+    error = `Failed to load comparison data. Please try again later.`;
   }
 } else {
   error = "Please select exactly two machines to compare.";
