@@ -18,6 +18,17 @@ export default defineConfig({
   integrations: [svelte()],
 
   vite: {
-    plugins: [tailwindcss()]
+    plugins: [tailwindcss()],
+    define: {
+      'import.meta.env.PUBLIC_SUPABASE_URL': JSON.stringify(process.env.PUBLIC_SUPABASE_URL),
+      'import.meta.env.PUBLIC_SUPABASE_ANON_KEY': JSON.stringify(process.env.PUBLIC_SUPABASE_ANON_KEY),
+    },
+    envPrefix: [
+      'PUBLIC_',
+      'SUPABASE_',
+    ],
+    esbuild: {
+      drop: ['console', 'debugger'],
+    },
   }
 });
