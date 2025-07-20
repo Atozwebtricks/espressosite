@@ -179,7 +179,7 @@ const metaTags = {
     <!-- Main Content -->
     <section class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
       <div class="bg-white rounded-xl border-2 border-primary shadow-lg overflow-hidden">
-        <MachineSpecs client:visible machine={machineWithImage} />
+        <MachineSpecs client:only="svelte" machine={machineWithImage} />
       </div>
     </section>
   </div>

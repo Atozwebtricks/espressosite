@@ -81,7 +81,7 @@ Astro.response.headers.set(
     {error && <p class="text-red-500 bg-red-100 p-3 rounded">{error}</p>}
 
     {machines.length === 2 ? (
-      <CompareView client:visible machines={machines} />
+      <CompareView client:only="svelte" machines={machines} />
     ) : (
       !error && <p>Loading machine data...</p>
     )}
