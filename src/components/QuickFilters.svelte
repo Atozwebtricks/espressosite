@@ -121,7 +121,7 @@
 
 <svelte:window on:click={handleClickOutside} />
 
-<div class="flex items-center gap-3 flex-1 flex-wrap px-2 md:px-0 justify-center md:justify-start font-medium">
+<div class="grid grid-cols-2 sm:flex items-center gap-3 flex-1 flex-wrap px-2 md:px-0 justify-center md:justify-start font-medium">
   <!-- Search -->
   <div class="relative w-full sm:w-auto">
     <svg class="absolute left-2.5 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -169,7 +169,7 @@
   />
 
   <!-- Quick Toggles -->
-  <div class="flex items-center gap-1 overflow-auto justify-start md:justify-start">
+  <div class="flex items-center gap-1 overflow-auto justify-start md:justify-start col-span-2 mt-4 sm:mt-0">
     <!-- Has Dual Boiler Checkbox -->
     <div class="flex items-center gap-1.5 flex-none sm:flex-auto">
       <Checkbox 

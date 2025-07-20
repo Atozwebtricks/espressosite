@@ -21,9 +21,9 @@
   }
 </script>
 
-<div class="relative dropdown-container">
+<div class="relative dropdown-container w-full sm:w-auto">
   <button 
-    class="inline-flex items-center gap-2 px-3 py-2  rounded-md text-sm font-medium border-2 border-gray-900 text-gray-700 bg-white/80 hover:bg-gray-50 focus:outline-none custom-dropdown-button transition-all duration-200"
+    class="w-full sm:w-auto inline-flex items-center gap-2 px-3 py-2  rounded-md text-sm font-medium border-2 border-gray-900 text-gray-700 bg-white/80 hover:bg-gray-50 focus:outline-none custom-dropdown-button transition-all duration-200"
     on:click={handleButtonClick}
   >
     <span class="text-sm text-gray-900">{label}</span>
