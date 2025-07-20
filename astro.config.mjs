@@ -9,7 +9,7 @@ import tailwindcss from '@tailwindcss/vite';
 // https://astro.build/config
 export default defineConfig({
   site: 'https://espressopicker.com',
-  output: 'server',
+  output: 'static',
   adapter: cloudflare({
     imageService: 'passthrough'
   }),
