@@ -4,7 +4,7 @@
   const faqItems = [
     {
       question: "What does PID mean?",
-      answer: "PID stands for Proportional-Integral-Derivative controller. In simple terms, it's a smart, electronic temperature controller that keeps your machine’s boiler at exactly the right heat"
+      answer: "PID stands for Proportional-Integral-Derivative controller. In simple terms, it's a smart, electronic temperature controller that keeps your machine's boiler at exactly the right heat"
     },
     {
       question: "What does 'plumbable' mean?",
@@ -16,7 +16,7 @@
     },
     {
       question: "Is it worth getting an espresso machine with a built-in grinder?",
-      answer: "If you want a simple, space-saving setup, an espresso machine with a built-in grinder can be a great choice. It’s convenient and often more affordable than buying separate pieces. But if you care about getting the best grind quality, or want to upgrade later, a separate grinder is usually better. In short: built-in grinders are perfect for ease and everyday use, while separate setups give you more control and top-tier results."
+      answer: "If you want a simple, space-saving setup, an espresso machine with a built-in grinder can be a great choice. It's convenient and often more affordable than buying separate pieces. But if you care about getting the best grind quality, or want to upgrade later, a separate grinder is usually better. In short: built-in grinders are perfect for ease and everyday use, while separate setups give you more control and top-tier results."
     },
     {
       question: "What's the difference between a single boiler and a dual boiler?",
@@ -32,23 +32,28 @@
   }
 </script>
 
-<section class="max-w-3xl mx-auto px-5 pb-8 py-12">
+<section class="max-w-3xl mx-auto px-5 pb-8 py-12" itemscope itemtype="https://schema.org/FAQPage">
   <div class="text-center mb-12">
     <h2 class="font-serif font-bold text-primary text-2xl sm:text-4xl mb-4">
       Frequently Asked Questions
     </h2>
-  
   </div>
 
   <div class="space-y-4">
     {#each faqItems as item, index}
-      <div class:bg-white={openIndex === index} class="border-2 border-primary rounded-lg overflow-hidden">
+      <div 
+        class:bg-white={openIndex === index} 
+        class="border-2 border-primary rounded-lg overflow-hidden"
+        itemscope 
+        itemprop="mainEntity" 
+        itemtype="https://schema.org/Question"
+      >
         <button
           class="w-full px-4 py-3 text-left bg-white/20 hover:bg-white transition-background duration-300 flex items-center justify-between"
           on:click={() => toggleItem(index)}
           aria-expanded={openIndex === index}
         >
-          <h3 class="font-semibold text-gray-900 text-base sm:text-lg pr-4">
+          <h3 class="font-semibold text-gray-900 text-base sm:text-lg pr-4" itemprop="name">
             {item.question}
           </h3>
           <svg 
@@ -63,8 +68,14 @@
         </button>
         
         {#if openIndex === index}
-          <div class="px-4 pb-4border-t border-gray-100 mb-4" transition:slide={{ duration: 400, easing: t => t*t }}>
-            <p class="text-gray-900 leading-relaxed">
+          <div 
+            class="px-4 pb-4border-t border-gray-100 mb-4" 
+            transition:slide={{ duration: 400, easing: t => t*t }}
+            itemscope 
+            itemprop="acceptedAnswer" 
+            itemtype="https://schema.org/Answer"
+          >
+            <p class="text-gray-900 leading-relaxed" itemprop="text">
               {item.answer}
             </p>
           </div>
