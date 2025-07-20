@@ -124,12 +124,12 @@ Astro.response.headers.set(
 
 	<section class="max-w-10xl mx-auto px-3 lg:px-16 pb-4">
 		<div class="border-border">
-			<MachineList client:only="svelte" allMachines={machinesWithImages} />
+			<MachineList client:load allMachines={machinesWithImages} />
 		</div>
 	</section>
 
   <div class="h-[1px] bg-gray-300 w-3xs mx-auto"></div>
 
 	<!-- FAQ Section -->
-	<FAQ client:only="svelte" />
+	<FAQ client:load />
 </Layout>

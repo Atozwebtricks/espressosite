@@ -4,30 +4,43 @@
   import MachineTable from './MachineTable.svelte';
   import CompareTray from './CompareTray.svelte';
   import Pagination from './Pagination.svelte';
-  import { fetchMachineImages } from '../lib/machinesStore';
-  import { machinesStore } from '../lib/machinesStore';
   import { onMount } from 'svelte';
 
   export let allMachines: any[] = [];
 
-  // Subscribe to the machines store for live updates
-  $: {
-    // If store has more recent data, use it; otherwise use SSR data
-    if ($machinesStore.machines.length > 0 && $machinesStore.lastUpdated > 0) {
-      allMachines = $machinesStore.machines;
+  // Client-side store variables (only available in browser)
+  let machinesStore: any = null;
+  let fetchMachineImages: any = null;
+  let storeLoading = false;
+  let storeError = null;
+  let isBackgroundRefresh = false;
+
+  // Initialize store only in browser
+  onMount(async () => {
+    if (typeof window !== 'undefined') {
+      const storeModule = await import('../lib/machinesStore');
+      machinesStore = storeModule.machinesStore;
+      fetchMachineImages = storeModule.fetchMachineImages;
+      
+      // Subscribe to store updates
+      const unsubscribe = machinesStore.subscribe((state: any) => {
+        storeLoading = state.loading;
+        storeError = state.error;
+        isBackgroundRefresh = state.loading && allMachines.length > 0;
+        
+        // If store has more recent data, use it; otherwise keep SSR data
+        if (state.machines.length > 0 && state.lastUpdated > 0) {
+          allMachines = state.machines;
+        }
+      });
+      
+      return unsubscribe;
     }
-  }
+  });
 
   let filteredMachines = allMachines;
   let sortedMachines: any[] = [];
   let paginatedMachines: any[] = [];
-
-  // Store state for UI feedback
-  $: storeLoading = $machinesStore.loading;
-  $: storeError = $machinesStore.error;
-  
-  // Track if this is a background refresh (when we have data but it's being refreshed)
-  $: isBackgroundRefresh = storeLoading && allMachines.length > 0;
   let selectedMachines: any[] = [];
   
   // Pagination state
@@ -296,6 +309,9 @@
   }
 
   async function loadImagesForVisibleMachines(machines: any[]) {
+    // Only load images in browser when store is available
+    if (!fetchMachineImages) return;
+    
     const machinesNeedingImages = machines.filter(machine => 
       !machine.signedImageUrl && 
       !loadedImages.has(machine.id) && 

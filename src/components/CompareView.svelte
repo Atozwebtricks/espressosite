@@ -19,7 +19,6 @@
     formatSteamWand,
     formatPreInfusion
   } from '../lib/formatters';
-  import { fetchMachineImages } from '../lib/machinesStore';
   import ImageLightbox from './ImageLightbox.svelte';
   import StatusPill from './StatusPill.svelte';
   import LazyImage from './LazyImage.svelte';
@@ -35,8 +34,10 @@
 
   // Load images for both machines on mount
   onMount(async () => {
-    if (machine1?.id && machine2?.id) {
+    if (machine1?.id && machine2?.id && typeof window !== 'undefined') {
       try {
+        // Dynamically import store only in browser
+        const { fetchMachineImages } = await import('../lib/machinesStore');
         const machineIds = [machine1.id, machine2.id];
         const images = await fetchMachineImages(machineIds);
         

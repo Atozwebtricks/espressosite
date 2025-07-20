@@ -21,14 +21,15 @@
   } from '../lib/formatters';
   import ImageLightbox from './ImageLightbox.svelte';
   import LazyImage from './LazyImage.svelte';
-  import { fetchMachineImages } from '../lib/machinesStore';
   
   export let machine;
 
   // Load images for the machine on mount
   onMount(async () => {
-    if (machine?.id) {
+    if (machine?.id && typeof window !== 'undefined') {
       try {
+        // Dynamically import store only in browser
+        const { fetchMachineImages } = await import('../lib/machinesStore');
         const machineIds = [machine.id];
         const images = await fetchMachineImages(machineIds);
         

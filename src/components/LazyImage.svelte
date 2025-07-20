@@ -1,6 +1,5 @@
 <script lang="ts">
   import { onMount, createEventDispatcher } from 'svelte';
-  import { fetchMachineImage } from '../lib/machinesStore';
 
   export let machineId: string;
   export let imagePath: string | null = null;
@@ -31,10 +30,17 @@
       return;
     }
 
-    // Fallback: try to fetch the image
+    // Fallback: try to fetch the image (only in browser)
+    if (typeof window === 'undefined') {
+      error = true;
+      return;
+    }
+    
     try {
       console.log(`Fetching image for machine ${machineId}: ${imagePath}`);
       
+      // Dynamically import store only in browser
+      const { fetchMachineImage } = await import('../lib/machinesStore');
       const imageData = await fetchMachineImage(machineId, 400);
 
       if (!imageData || !imageData.url) {
