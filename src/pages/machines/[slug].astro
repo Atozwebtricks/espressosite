@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { fetchMachineImage } from '../../lib/supabase';
 import Layout from '../../layouts/Layout.astro';
 import MachineSpecs from '../../components/MachineSpecs.svelte';
+import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from 'astro:env/client';
 
 // Server-side rendering with client-side store for persistence
 
@@ -19,8 +20,8 @@ let pageDescription = "Espresso machine specifications and details";
 let structuredData = {};
 
 try {
-  const supabaseUrl = import.meta.env.PUBLIC_SUPABASE_URL;
-  const supabaseKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY;
+  const supabaseUrl = PUBLIC_SUPABASE_URL;
+  const supabaseKey = PUBLIC_SUPABASE_ANON_KEY;
   
   if (!supabaseUrl || !supabaseKey) {
     console.warn('SSR: Missing Supabase credentials, falling back to 404');
