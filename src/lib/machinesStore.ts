@@ -20,7 +20,7 @@ const CACHE_KEY = 'machinesCache';
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes in milliseconds
 const REFRESH_THRESHOLD = 2 * 60 * 1000; // Only refresh if data is older than 2 minutes
 
-// Initialize Supabase client for the store
+// Initialize Supabase client for the store (Cloudflare Workers compatible)
 const supabase = createClient(
   import.meta.env.PUBLIC_SUPABASE_URL,
   import.meta.env.PUBLIC_SUPABASE_ANON_KEY,
@@ -37,6 +37,7 @@ const supabase = createClient(
         'cache-control': 'no-cache',
       },
     },
+    // Real-time features disabled for Cloudflare Workers compatibility
   }
 );
 
@@ -91,14 +92,7 @@ function createMachinesStore(): Writable<MachineStoreState> & { refresh: (silent
     try {
       console.log('Fetching machines from Supabase...');
       
-      // Try to refresh the session first (silent fail)
-      try {
-        await supabase.auth.refreshSession();
-      } catch (refreshError) {
-        console.log('Session refresh not needed or failed (this is normal for read-only apps)');
-      }
-
-      // Fetch machines data
+      // Fetch machines data (no session refresh needed for read-only app)
       const { data: machines, error } = await supabase
         .from('espresso_machines')
         .select('*')

@@ -16,11 +16,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
       'cache-control': 'no-cache',
     },
   },
-  realtime: {
-    params: {
-      eventsPerSecond: 10,
-    },
-  },
+  // Real-time features disabled for Cloudflare Workers compatibility
 })
 
 // Image helper for fetching signed URLs with resizing
