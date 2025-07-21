@@ -13,10 +13,12 @@ import Footer from '../components/Footer.astro';
 const { 
 	title, 
 	description = "Compare specifications, prices, and features of the best espresso machines. Find the perfect coffee machine for your home or office with our comprehensive comparison tool.",
-	image = "/og-image.jpg",
+	image = "/espresso-og.jpg",
 	canonicalURL = new URL(Astro.url.pathname, Astro.site),
 	type = "website"
 } = Astro.props;
+
+const ogImageURL = new URL(image, Astro.site);
 
 const siteName = "Espresso Machine Comparison";
 ---
@@ -34,6 +36,9 @@ const siteName = "Espresso Machine Comparison";
 		<!-- Canonical URL -->
 		<link rel="canonical" href={canonicalURL} />
 		
+		<!-- Sitemap -->
+		<link rel="sitemap" href="/sitemap-index.xml" />
+		
 		<link rel="icon" type="image/png" href="/favicon-96x96.png" sizes="96x96" />
 <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 <link rel="shortcut icon" href="/favicon.ico" />
@@ -45,7 +50,7 @@ const siteName = "Espresso Machine Comparison";
 		<meta property="og:url" content={canonicalURL} />
 		<meta property="og:title" content={title} />
 		<meta property="og:description" content={description} />
-		<meta property="og:image" content={new URL(image, Astro.site)} />
+		<meta property="og:image" content={ogImageURL} />
 		<meta property="og:site_name" content={siteName} />
 		
 		<!-- Twitter -->
@@ -53,7 +58,7 @@ const siteName = "Espresso Machine Comparison";
 		<meta property="twitter:url" content={canonicalURL} />
 		<meta property="twitter:title" content={title} />
 		<meta property="twitter:description" content={description} />
-		<meta property="twitter:image" content={new URL(image, Astro.site)} />
+		<meta property="twitter:image" content={ogImageURL} />
 		
 		<!-- Performance Optimizations -->
 		<link rel="preload" href="/InterDisplay-Regular.woff2" as="font" type="font/woff2" crossorigin />
