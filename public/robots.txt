@@ -6,8 +6,8 @@ Disallow: /admin/
 Disallow: /_headers
 Disallow: /.well-known/
 
-# Sitemap (update with your actual production domain)
-Sitemap: https://your-domain.pages.dev/sitemap.xml
+# Sitemap
+Sitemap: https://espressopicker.com/sitemap-index.xml
 
 # Crawl-delay (optional, helps prevent overwhelming the server)
 Crawl-delay: 1
