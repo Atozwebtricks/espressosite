@@ -4,8 +4,7 @@ export async function GET() {
   
   // Base static pages
   const staticPages = [
-    'https://espressopicker.com/',
-    'https://espressopicker.com/compare/'
+    'https://espressopicker.com/'
   ];
 
   let machinePages = [];
