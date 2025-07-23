@@ -67,19 +67,18 @@
           </svg>
         </button>
         
-        {#if openIndex === index}
-          <div 
-            class="px-4 pb-4border-t border-gray-100 mb-4" 
-            transition:slide={{ duration: 400, easing: t => t*t }}
-            itemscope 
-            itemprop="acceptedAnswer" 
-            itemtype="https://schema.org/Answer"
-          >
-            <p class="text-gray-900 leading-relaxed" itemprop="text">
-              {item.answer}
-            </p>
-          </div>
-        {/if}
+        <div 
+          class="px-4 pb-2 mb-2" 
+          class:hidden={openIndex !== index}
+          transition:slide={{ duration: 400, easing: t => t*t }}
+          itemscope 
+          itemprop="acceptedAnswer" 
+          itemtype="https://schema.org/Answer"
+        >
+          <p class="text-gray-900 leading-relaxed" itemprop="text">
+            {item.answer}
+          </p>
+        </div>
       </div>
     {/each}
   </div>

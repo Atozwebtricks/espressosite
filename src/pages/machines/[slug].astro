@@ -15,7 +15,7 @@ let machine = null;
 let machineWithImage = null;
 let pageTitle = "Espresso Machine";
 let pageDescription = "Espresso machine specifications and details";
-let structuredData = {};
+let structuredData: any = {};
 
 try {
   const supabaseUrl = PUBLIC_SUPABASE_URL;
@@ -68,56 +68,32 @@ try {
   pageDescription = `Compare the ${machineName} espresso machine by ${brandName} with other models. View full specs and features.`;
   
   // Enhanced structured data for better SEO
+  // Using Article schema since this is more of a product comparison/information page
   structuredData = {
     "@context": "https://schema.org",
-    "@type": "Product",
-    "name": machineName,
-    "brand": {
-      "@type": "Brand", 
-      "name": brandName
-    },
+    "@type": "Article",
+    "headline": pageTitle,
     "description": pageDescription,
-    "category": "Kitchen Appliance",
-    "productID": machine.id,
-    "sku": machine.id,
-    "gtin": machine.model_number || machine.id,
-    "additionalType": "https://schema.org/Product",
     "url": `${Astro.site}machines/${machine.id}`,
-    "aggregateRating": machine.rating ? {
-      "@type": "AggregateRating",
-      "ratingValue": machine.rating,
-      "bestRating": "5",
-      "worstRating": "1"
-    } : undefined,
-    "review": machine.review_summary ? {
-      "@type": "Review",
-      "reviewBody": machine.review_summary,
-      "author": {
-        "@type": "Organization",
-        "name": "Espresso Machine Picker"
-      }
-    } : undefined,
-    "manufacturer": {
-      "@type": "Organization",
-      "name": brandName
+    "mainEntityOfPage": {
+      "@type": "WebPage",
+      "@id": `${Astro.site}machines/${machine.id}`
     },
-    "additionalProperty": [
-      machine.machine_type ? {
-        "@type": "PropertyValue",
-        "name": "Machine Type",
-        "value": machine.machine_type
-      } : null,
-      machine.boiler_configuration ? {
-        "@type": "PropertyValue", 
-        "name": "Boiler Configuration",
-        "value": machine.boiler_configuration
-      } : null,
-      machine.has_pid ? {
-        "@type": "PropertyValue",
-        "name": "PID Control",
-        "value": machine.has_pid ? "Yes" : "No"
-      } : null
-    ].filter(Boolean)
+    "author": {
+      "@type": "Organization",
+      "name": "Espresso Machine Picker",
+      "url": Astro.site
+    },
+    "publisher": {
+      "@type": "Organization",
+      "name": "Espresso Machine Picker",
+      "url": Astro.site
+    },
+    "datePublished": machine.release_year ? `${machine.release_year}-01-01` : "2024-01-01",
+    "dateModified": new Date().toISOString().split('T')[0],
+    "image": machine.image_path ? `${Astro.site}${machine.image_path}` : `${Astro.site}espresso-og.jpg`,
+    "articleSection": "Espresso Machine Reviews",
+    "keywords": `${machineName}, ${brandName}, espresso machine, coffee machine, ${machine.machine_type || 'espresso machine'}, review, specs, comparison`
   };
 
   console.log('SSR: Successfully prepared machine detail data');
